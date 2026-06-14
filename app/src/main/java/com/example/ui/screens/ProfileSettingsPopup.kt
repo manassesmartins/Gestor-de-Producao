@@ -758,7 +758,9 @@ fun ProfileSettingsPopup(
                         Button(
                             onClick = {
                                 val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN)
+                                    .requestIdToken("380829053008-k90gbhib038p1fh7e40ops722q4edtav.apps.googleusercontent.com")
                                     .requestEmail()
+                                    .requestProfile()
                                     .build()
                                 val client = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(context, gso)
                                 googleSignInLauncher.launch(client.signInIntent)

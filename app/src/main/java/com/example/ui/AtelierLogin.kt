@@ -89,6 +89,7 @@ fun MsModaIntimaLoginScreen(viewModel: TransactionViewModel) {
     // Set up real Google Sign-In options with basic scopes (email and profile) which are guaranteed to succeed on any account picker
     val gso = remember {
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken("380829053008-k90gbhib038p1fh7e40ops722q4edtav.apps.googleusercontent.com")
             .requestEmail()
             .requestProfile()
             .build()
@@ -151,6 +152,7 @@ fun MsModaIntimaLoginScreen(viewModel: TransactionViewModel) {
                 } else {
                     // Request Drive file permission dynamically to give the Google app permissions on demand
                     val gsoWithDrive = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                        .requestIdToken("380829053008-k90gbhib038p1fh7e40ops722q4edtav.apps.googleusercontent.com")
                         .requestEmail()
                         .requestProfile()
                         .requestScopes(driveScope)
