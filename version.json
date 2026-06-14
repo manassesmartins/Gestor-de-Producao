@@ -1,0 +1,7 @@
+{
+  "version": "1.2.55",
+  "changelog": "Build automático: Commit refactor: remove manual Google Web Client ID config
+
+Removed dependency on manual Web Client ID configuration and simplified Google Sign-In and synchronization logic by cleaning up unused UI components and session management fields.",
+  "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
+}
