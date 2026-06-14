@@ -525,7 +525,7 @@ fun MsModaIntimaLoginScreen(viewModel: TransactionViewModel) {
                     onClick = {
                         showFallbackPicker = false
                         viewModel.setAuthError(null)
-                        viewModel.loginWithGoogle(fallbackEmail, fallbackName)
+                        viewModel.loginWithGoogle(fallbackEmail, fallbackName, isFallback = true)
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Primary)
                 ) {

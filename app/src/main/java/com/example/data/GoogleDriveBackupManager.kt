@@ -267,12 +267,13 @@ object GoogleDriveBackupManager {
         }
 
         return@withContext try {
+            val googleAccount = account.account ?: return@withContext null
             GoogleAuthUtil.getToken(
                 context,
-                account.account ?: return@withContext null,
+                googleAccount,
                 "oauth2:https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email openid"
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Error getting Google OAuth token: ${e.message}", e)
             null
         }

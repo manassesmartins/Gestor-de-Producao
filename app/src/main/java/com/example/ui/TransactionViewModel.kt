@@ -447,7 +447,7 @@ class TransactionViewModel(
         }
     }
 
-    fun loginWithGoogle(email: String, name: String, avatarUrl: String? = null) {
+    fun loginWithGoogle(email: String, name: String, avatarUrl: String? = null, isFallback: Boolean = false) {
         viewModelScope.launch {
             _authLoading.value = true
             _authError.value = null
@@ -459,38 +459,48 @@ class TransactionViewModel(
                 // Fetch the Google Drive Access Token
                 var token: String? = null
                 var downloadSuccess = false
-                try {
-                    // Wrap with NonCancellable to completely isolate external Google services cancellation
-                    withContext(NonCancellable) {
-                        token = com.example.data.GoogleDriveBackupManager.getGoogleAccessToken(context)
-                        if (token != null) {
-                            val fileId = com.example.data.GoogleDriveBackupManager.findBackupFile(token)
-                            if (fileId != null) {
-                                val res = com.example.data.GoogleDriveBackupManager.downloadBackup(token, fileId, context)
-                                if (res) {
-                                    downloadSuccess = true
-                                    android.util.Log.i("TransactionViewModel", "Database auto-restored from Google Drive successfully!")
+                
+                if (!isFallback) {
+                    try {
+                        // Wrap with NonCancellable to completely isolate external Google services cancellation
+                        withContext(NonCancellable) {
+                            token = com.example.data.GoogleDriveBackupManager.getGoogleAccessToken(context)
+                            if (token != null) {
+                                val fileId = com.example.data.GoogleDriveBackupManager.findBackupFile(token)
+                                if (fileId != null) {
+                                    val res = com.example.data.GoogleDriveBackupManager.downloadBackup(token, fileId, context)
+                                    if (res) {
+                                        downloadSuccess = true
+                                        android.util.Log.i("TransactionViewModel", "Database auto-restored from Google Drive successfully!")
+                                    }
                                 }
                             }
                         }
+                    } catch (e: Throwable) {
+                        android.util.Log.e("TransactionViewModel", "Google Drive sync error during login: ${e.message}", e)
                     }
-                } catch (e: Exception) {
-                    android.util.Log.e("TransactionViewModel", "Google Drive sync error during login: ${e.message}", e)
-                }
 
-                try {
-                    if (!downloadSuccess) {
-                        // Seed categories if it's a fresh setup
-                        repository.seedMockDataIfEmpty()
-                        // Upload current local database to start a new Google Drive backup stream
-                        if (token != null) {
-                            withContext(NonCancellable) {
-                                com.example.data.GoogleDriveBackupManager.uploadBackup(token!!, context)
+                    try {
+                        if (!downloadSuccess) {
+                            // Seed categories if it's a fresh setup
+                            repository.seedMockDataIfEmpty()
+                            // Upload current local database to start a new Google Drive backup stream
+                            if (token != null) {
+                                withContext(NonCancellable) {
+                                    com.example.data.GoogleDriveBackupManager.uploadBackup(token!!, context)
+                                }
                             }
                         }
+                    } catch (e: Throwable) {
+                        android.util.Log.e("TransactionViewModel", "Google Drive backup uploading error during login: ${e.message}", e)
                     }
-                } catch (e: Exception) {
-                    android.util.Log.e("TransactionViewModel", "Google Drive backup uploading error during login: ${e.message}", e)
+                } else {
+                    // For fallback login, do not touch Google services, just seed the DB locally if empty
+                    try {
+                        repository.seedMockDataIfEmpty()
+                    } catch (e: Exception) {
+                        android.util.Log.e("TransactionViewModel", "Local seeding error: ${e.message}", e)
+                    }
                 }
 
                 // Save user profile locally
@@ -519,7 +529,9 @@ class TransactionViewModel(
                     _colorSchemeName.value = config.colorScheme
                 }
                 
-                _authSuccessMessage.value = if (downloadSuccess) {
+                _authSuccessMessage.value = if (isFallback) {
+                    "Conectado em Modo Off-line Seguro com sucesso!"
+                } else if (downloadSuccess) {
                     "Conectado à sua conta Google!\nSeu banco de dados SQLite foi encontrado e restaurado com do Google Drive."
                 } else {
                     "Conectado à sua conta Google!\nNenhum backup prévio localizado. Um novo backup automático foi gerado no seu Google Drive."
