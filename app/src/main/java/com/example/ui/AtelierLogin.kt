@@ -86,14 +86,21 @@ fun MsModaIntimaLoginScreen(viewModel: TransactionViewModel) {
         }
     }
 
+    var showGoogleSettings by remember { mutableStateOf(false) }
+    val sessionManager = remember { viewModel.sessionManager }
+    var webClientId by remember { mutableStateOf(sessionManager.googleWebClientId) }
+
     // Set up real Google Sign-In options with basic scopes (email and profile) which are guaranteed to succeed on any account picker
-    val gso = remember {
-        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+    val gso = remember(webClientId) {
+        val builder = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
             .requestProfile()
-            .build()
+        if (webClientId.trim().isNotEmpty()) {
+            builder.requestIdToken(webClientId.trim())
+        }
+        builder.build()
     }
-    val googleSignInClient = remember {
+    val googleSignInClient = remember(gso) {
         GoogleSignIn.getClient(context, gso)
     }
     
@@ -150,11 +157,14 @@ fun MsModaIntimaLoginScreen(viewModel: TransactionViewModel) {
                     viewModel.loginWithGoogle(googleEmail, googleName, googlePhoto)
                 } else {
                     // Request Drive file permission dynamically to give the Google app permissions on demand
-                    val gsoWithDrive = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                    val builderWithDrive = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                         .requestEmail()
                         .requestProfile()
                         .requestScopes(driveScope)
-                        .build()
+                    if (webClientId.trim().isNotEmpty()) {
+                        builderWithDrive.requestIdToken(webClientId.trim())
+                    }
+                    val gsoWithDrive = builderWithDrive.build()
                     val driveSignInClient = GoogleSignIn.getClient(context, gsoWithDrive)
                     drivePermissionLauncher.launch(driveSignInClient.signInIntent)
                 }
@@ -164,7 +174,7 @@ fun MsModaIntimaLoginScreen(viewModel: TransactionViewModel) {
         } catch (e: ApiException) {
             Log.e("GoogleSignIn", "Google Sign-In ApiException: Code ${e.statusCode}", e)
             val detailedMsg = when (e.statusCode) {
-                10 -> "Erro 10 (DEVELOPER_ERROR): A assinatura SHA-1 deste aplicativo ou o ID do cliente Google não estão associados ao ID do cliente correspondente no Google Cloud Console.\n\nPACOTE: " + context.packageName + "\nSHA-1: 41:AF:70:44:89:BC:D3:F0:4F:33:33:13:DE:F1:04:87:42:02:3F:15"
+                10 -> "Erro 10 (DEVELOPER_ERROR): Assinatura do app ou credenciais não vinculadas no Google Cloud.\n\nPACOTE: " + context.packageName + "\nSHA-1: 41:AF:70:44:89:BC:D3:F0:4F:33:33:13:DE:F1:04:87:42:02:3F:15\n\n💡 Dica: Toque no ícone de engrenagem no topo direito para configurar o seu ID de Cliente Web (Web Client ID), necessário se você estiver utilizando um projeto próprio."
                 12500 -> "Erro 12500: Erro de sinalização interna do Google Play Services. Certifique-se de registrar o SHA-1 no console Google Cloud:\n\nSHA-1: 41:AF:70:44:89:BC:D3:F0:4F:33:33:13:DE:F1:04:87:42:02:3F:15"
                 7 -> "Erro 7 (NETWORK_ERROR): Falha de rede. Certifique-se de que o dispositivo possui acesso à Internet estável."
                 16 -> "Erro 16 (CANCELED): O processo de login foi cancelado pelo usuário."
@@ -211,6 +221,21 @@ fun MsModaIntimaLoginScreen(viewModel: TransactionViewModel) {
                     shape = CircleShape
                 )
         )
+
+        // Settings Button for Google Credentials Configuration (Top Right)
+        IconButton(
+            onClick = { showGoogleSettings = true },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp)
+                .testTag("google_settings_button")
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "Configurações de Credenciais Google",
+                tint = OnSurfaceVariant.copy(alpha = 0.8f)
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -534,6 +559,105 @@ fun MsModaIntimaLoginScreen(viewModel: TransactionViewModel) {
             },
             dismissButton = {
                 TextButton(onClick = { showFallbackPicker = false }) {
+                    Text("Cancelar", color = OnSurfaceVariant)
+                }
+            }
+        )
+    }
+
+    // Google Settings Dialog for Web Client ID specification
+    if (showGoogleSettings) {
+        var inputWebClientId by remember { mutableStateOf(webClientId) }
+        
+        AlertDialog(
+            onDismissRequest = { showGoogleSettings = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Build,
+                        contentDescription = null,
+                        tint = Primary
+                    )
+                    Text(
+                        text = "Configuração do Google",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = OnSurface
+                    )
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Se você utiliza um projeto de credenciais próprio no Google Cloud Console, cole abaixo o ID de cliente para aplicativo Web (Web Client ID). Isso evita o Erro 10 (DEVELOPER_ERROR) ao autenticar.",
+                        fontSize = 12.sp,
+                        color = OnSurfaceVariant,
+                        lineHeight = 16.sp
+                    )
+                    
+                    OutlinedTextField(
+                        value = inputWebClientId,
+                        onValueChange = { inputWebClientId = it },
+                        label = { Text("Web Client ID (Opcional)") },
+                        placeholder = { Text("ex: xxxxxx.apps.googleusercontent.com") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(SurfaceDark.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            .border(1.dp, Primary.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                            .padding(10.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Dados de registro na Google Cloud:",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Primary
+                            )
+                            Text(
+                                text = "Pacote: com.aistudio.gestordeproducao.xqwzpt",
+                                fontSize = 10.sp,
+                                color = OnSurfaceVariant
+                            )
+                            Text(
+                                text = "SHA-1: 41:AF:70:44:89:BC:D3:F0:4F:33:33:13:DE:F1:04:87:42:02:3F:15",
+                                fontSize = 10.sp,
+                                color = OnSurfaceVariant
+                            )
+                            Text(
+                                text = "SHA-256: 66:8A:86:8F:2F:87:18:18:4A:CB:11:16:1A:6D:8E:F5:82:86:59:42:63:EF:B3:33:41:61:0D:E3:43:D2:17:8C",
+                                fontSize = 10.sp,
+                                color = OnSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        sessionManager.googleWebClientId = inputWebClientId
+                        webClientId = inputWebClientId
+                        showGoogleSettings = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                ) {
+                    Text("Salvar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showGoogleSettings = false }) {
                     Text("Cancelar", color = OnSurfaceVariant)
                 }
             }
