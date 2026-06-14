@@ -1,7 +1,0 @@
-{
-  "version": "1.2.50",
-  "changelog": "Build automático: Commit chore: revert version to 1.2
-
-Reset versioning scheme to 1.2 and remove obsolete version metadata for cleaner tracking.",
-  "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
-}

@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.NonCancellable
 import android.widget.Toast
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -459,19 +460,22 @@ class TransactionViewModel(
                 var token: String? = null
                 var downloadSuccess = false
                 try {
-                    token = com.example.data.GoogleDriveBackupManager.getGoogleAccessToken(context)
-                    if (token != null) {
-                        val fileId = com.example.data.GoogleDriveBackupManager.findBackupFile(token)
-                        if (fileId != null) {
-                            val res = com.example.data.GoogleDriveBackupManager.downloadBackup(token, fileId, context)
-                            if (res) {
-                                downloadSuccess = true
-                                android.util.Log.i("TransactionViewModel", "Database auto-restored from Google Drive successfully!")
+                    // Wrap with NonCancellable to completely isolate external Google services cancellation
+                    withContext(NonCancellable) {
+                        token = com.example.data.GoogleDriveBackupManager.getGoogleAccessToken(context)
+                        if (token != null) {
+                            val fileId = com.example.data.GoogleDriveBackupManager.findBackupFile(token)
+                            if (fileId != null) {
+                                val res = com.example.data.GoogleDriveBackupManager.downloadBackup(token, fileId, context)
+                                if (res) {
+                                    downloadSuccess = true
+                                    android.util.Log.i("TransactionViewModel", "Database auto-restored from Google Drive successfully!")
+                                }
                             }
                         }
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("TransactionViewModel", "Google Drive sync error during login", e)
+                    android.util.Log.e("TransactionViewModel", "Google Drive sync error during login: ${e.message}", e)
                 }
 
                 try {
@@ -480,11 +484,13 @@ class TransactionViewModel(
                         repository.seedMockDataIfEmpty()
                         // Upload current local database to start a new Google Drive backup stream
                         if (token != null) {
-                            com.example.data.GoogleDriveBackupManager.uploadBackup(token, context)
+                            withContext(NonCancellable) {
+                                com.example.data.GoogleDriveBackupManager.uploadBackup(token!!, context)
+                            }
                         }
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("TransactionViewModel", "Google Drive backup uploading error during login", e)
+                    android.util.Log.e("TransactionViewModel", "Google Drive backup uploading error during login: ${e.message}", e)
                 }
 
                 // Save user profile locally
