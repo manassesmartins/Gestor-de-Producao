@@ -1,0 +1,7 @@
+{
+  "version": "1.2.56",
+  "changelog": "Build automático: Commit feat: configure Google ID token for authentication
+
+Update Google Sign-In options to include the required requestIdToken for backend verification. Also reset the application version to 1.2.",
+  "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
+}
