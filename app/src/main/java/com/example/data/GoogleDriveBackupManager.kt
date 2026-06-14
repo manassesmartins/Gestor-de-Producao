@@ -16,7 +16,6 @@ import java.io.OutputStream
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.NonCancellable
 
 object GoogleDriveBackupManager {
     private const val TAG = "GoogleDriveBackup"
@@ -256,25 +255,16 @@ object GoogleDriveBackupManager {
     }
 
     // Helper to request a fresh Google Drive/Profile access token for API calls
-    suspend fun getGoogleAccessToken(context: Context): String? = withContext(Dispatchers.IO + NonCancellable) {
+    suspend fun getGoogleAccessToken(context: Context): String? = withContext(Dispatchers.IO) {
         val account = GoogleSignIn.getLastSignedInAccount(context) ?: return@withContext null
-        
-        // Safety check: ensure user granted the required Drive permission
-        val driveScope = com.google.android.gms.common.api.Scope("https://www.googleapis.com/auth/drive.file")
-        if (!GoogleSignIn.hasPermissions(account, driveScope)) {
-            Log.w(TAG, "Drive scope permission has not been granted by user. Skipping token request.")
-            return@withContext null
-        }
-
         return@withContext try {
-            val googleAccount = account.account ?: return@withContext null
             GoogleAuthUtil.getToken(
                 context,
-                googleAccount,
+                account.account ?: return@withContext null,
                 "oauth2:https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email openid"
             )
-        } catch (e: Throwable) {
-            Log.e(TAG, "Error getting Google OAuth token: ${e.message}", e)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting Google OAuth token", e)
             null
         }
     }

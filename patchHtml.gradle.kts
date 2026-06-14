@@ -123,7 +123,7 @@ tasks.register("patchWeb") {
                     }
 
                     const clientId = "gestor-web-" + p2pPinCode + "-" + Math.floor(Math.random() * 1000);
-                    mqttClient = new Paho.MQTT.Client("broker.hivemq.com", 8884, "/mqtt", clientId);
+                    mqttClient = new Paho.MQTT.Client("broker.hivemq.com", 8000, "/mqtt", clientId);
 
                     mqttClient.onConnectionLost = function (responseObject) {
                         setTimeout(initP2PMQTT, 3000); // Reconnect
@@ -172,7 +172,6 @@ tasks.register("patchWeb") {
 
                     const options = {
                         timeout: 3,
-                        useSSL: true,
                         onSuccess: function() {
                             mqttClient.subscribe("gestor_producao/sync/" + p2pPinCode, {qos: 1});
                         },

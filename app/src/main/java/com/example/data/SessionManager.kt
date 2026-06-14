@@ -35,10 +35,6 @@ class SessionManager(context: Context) {
         get() = prefs.getFloat(KEY_FONT_SIZE_SCALE, 1.0f)
         set(value) = prefs.edit().putFloat(KEY_FONT_SIZE_SCALE, value).apply()
 
-    var googleWebClientId: String
-        get() = prefs.getString("google_web_client_id", "") ?: ""
-        set(value) = prefs.edit().putString("google_web_client_id", value).apply()
-
     var userName: String
         get() = prefs.getString("user_name", "") ?: ""
         set(value) = prefs.edit().putString("user_name", value).apply()

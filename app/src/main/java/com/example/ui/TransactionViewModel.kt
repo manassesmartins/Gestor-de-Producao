@@ -18,10 +18,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.NonCancellable
-import android.widget.Toast
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -447,7 +443,7 @@ class TransactionViewModel(
         }
     }
 
-    fun loginWithGoogle(email: String, name: String, avatarUrl: String? = null, isFallback: Boolean = false) {
+    fun loginWithGoogle(email: String, name: String, avatarUrl: String? = null) {
         viewModelScope.launch {
             _authLoading.value = true
             _authError.value = null
@@ -459,48 +455,33 @@ class TransactionViewModel(
                 // Fetch the Google Drive Access Token
                 var token: String? = null
                 var downloadSuccess = false
-                
-                if (!isFallback) {
-                    try {
-                        // Wrap with NonCancellable to completely isolate external Google services cancellation
-                        withContext(NonCancellable) {
-                            token = com.example.data.GoogleDriveBackupManager.getGoogleAccessToken(context)
-                            if (token != null) {
-                                val fileId = com.example.data.GoogleDriveBackupManager.findBackupFile(token)
-                                if (fileId != null) {
-                                    val res = com.example.data.GoogleDriveBackupManager.downloadBackup(token, fileId, context)
-                                    if (res) {
-                                        downloadSuccess = true
-                                        android.util.Log.i("TransactionViewModel", "Database auto-restored from Google Drive successfully!")
-                                    }
-                                }
+                try {
+                    token = com.example.data.GoogleDriveBackupManager.getGoogleAccessToken(context)
+                    if (token != null) {
+                        val fileId = com.example.data.GoogleDriveBackupManager.findBackupFile(token)
+                        if (fileId != null) {
+                            val res = com.example.data.GoogleDriveBackupManager.downloadBackup(token, fileId, context)
+                            if (res) {
+                                downloadSuccess = true
+                                android.util.Log.i("TransactionViewModel", "Database auto-restored from Google Drive successfully!")
                             }
                         }
-                    } catch (e: Throwable) {
-                        android.util.Log.e("TransactionViewModel", "Google Drive sync error during login: ${e.message}", e)
                     }
+                } catch (e: Exception) {
+                    android.util.Log.e("TransactionViewModel", "Google Drive sync error during login", e)
+                }
 
-                    try {
-                        if (!downloadSuccess) {
-                            // Seed categories if it's a fresh setup
-                            repository.seedMockDataIfEmpty()
-                            // Upload current local database to start a new Google Drive backup stream
-                            if (token != null) {
-                                withContext(NonCancellable) {
-                                    com.example.data.GoogleDriveBackupManager.uploadBackup(token!!, context)
-                                }
-                            }
-                        }
-                    } catch (e: Throwable) {
-                        android.util.Log.e("TransactionViewModel", "Google Drive backup uploading error during login: ${e.message}", e)
-                    }
-                } else {
-                    // For fallback login, do not touch Google services, just seed the DB locally if empty
-                    try {
+                try {
+                    if (!downloadSuccess) {
+                        // Seed categories if it's a fresh setup
                         repository.seedMockDataIfEmpty()
-                    } catch (e: Exception) {
-                        android.util.Log.e("TransactionViewModel", "Local seeding error: ${e.message}", e)
+                        // Upload current local database to start a new Google Drive backup stream
+                        if (token != null) {
+                            com.example.data.GoogleDriveBackupManager.uploadBackup(token, context)
+                        }
                     }
+                } catch (e: Exception) {
+                    android.util.Log.e("TransactionViewModel", "Google Drive backup uploading error during login", e)
                 }
 
                 // Save user profile locally
@@ -529,9 +510,7 @@ class TransactionViewModel(
                     _colorSchemeName.value = config.colorScheme
                 }
                 
-                _authSuccessMessage.value = if (isFallback) {
-                    "Conectado em Modo Off-line Seguro com sucesso!"
-                } else if (downloadSuccess) {
+                _authSuccessMessage.value = if (downloadSuccess) {
                     "Conectado à sua conta Google!\nSeu banco de dados SQLite foi encontrado e restaurado com do Google Drive."
                 } else {
                     "Conectado à sua conta Google!\nNenhum backup prévio localizado. Um novo backup automático foi gerado no seu Google Drive."
@@ -880,60 +859,6 @@ class TransactionViewModel(
                 _syncState.value = "SYNCED"
             } else {
                 _syncState.value = "ERROR_SYNC"
-            }
-        }
-    }
-
-    fun refreshAppData(context: Context) {
-        viewModelScope.launch {
-            _syncState.value = "SYNCING"
-            var success = false
-            var message = "Processando atualização dos dados alterados..."
-            try {
-                if (_isCloudBackupEnabled.value) {
-                    val token = com.example.data.GoogleDriveBackupManager.getGoogleAccessToken(context)
-                    if (token != null) {
-                        // Upload the local database with all altered data so it is backed up on Google Drive safely
-                        val uploaded = com.example.data.GoogleDriveBackupManager.uploadBackup(token, context)
-                        if (uploaded) {
-                            success = true
-                            message = "Dados alterados salvos e sincronizados com sucesso no Google Drive!"
-                        } else {
-                            message = "Falha ao enviar dados alterados para o Google Drive."
-                        }
-                    } else {
-                        // Simulating backup upload of altered data if token not available but cloud is checked
-                        kotlinx.coroutines.delay(1000)
-                        success = true
-                        message = "Dados alterados sincronizados com sucesso (Sincronização local ativa)."
-                    }
-                } else {
-                    // Try to trigger live sync initialize if group code exists
-                    val code = com.example.data.LiveSyncManager.getStoredGroupCode(context)
-                    if (!code.isNullOrEmpty()) {
-                        com.example.data.LiveSyncManager.stopSync(context)
-                        com.example.data.LiveSyncManager.startSync(context, code, repository)
-                        kotlinx.coroutines.delay(800)
-                        success = true
-                        message = "Dados alterados sincronizados para o grupo: $code"
-                    } else {
-                        kotlinx.coroutines.delay(1000)
-                        success = true
-                        message = "Todos os dados locais e alterações foram sincronizados com sucesso!"
-                    }
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("TransactionViewModel", "Error syncing altered app data", e)
-                message = "Erro ao sincronizar dados alterados: ${e.localizedMessage}"
-            } finally {
-                if (success) {
-                    _syncState.value = "SYNCED"
-                } else {
-                    _syncState.value = "ERROR_SYNC"
-                }
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                }
             }
         }
     }
