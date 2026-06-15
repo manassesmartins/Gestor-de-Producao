@@ -1,9 +1,27 @@
+import java.util.Base64
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
+}
+
+val keystoreFile = file("${rootDir}/debug.keystore")
+val base64File = file("${rootDir}/debug.keystore.base64")
+if (!keystoreFile.exists() && base64File.exists()) {
+  try {
+    val base64Content = base64File.readText().trim()
+      .replace("\r", "")
+      .replace("\n", "")
+      .replace(" ", "")
+    val decodedBytes = Base64.getDecoder().decode(base64Content)
+    keystoreFile.writeBytes(decodedBytes)
+    logger.lifecycle("Successfully decoded debug.keystore from debug.keystore.base64")
+  } catch (e: java.lang.Exception) {
+    logger.error("Error decoding debug.keystore.base64 to debug.keystore: ${e.message}", e)
+  }
 }
 
 android {
@@ -14,8 +32,8 @@ android {
     applicationId = "com.aistudio.gestordeproducao.xqwzpt"
     minSdk = 24
     targetSdk = 36
-    versionCode = 167
-    versionName = "1.2.67"
+    versionCode = 2
+    versionName = "1.2"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
