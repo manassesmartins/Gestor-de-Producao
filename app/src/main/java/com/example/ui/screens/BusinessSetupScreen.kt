@@ -6,6 +6,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -20,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -43,10 +49,43 @@ fun BusinessSetupScreen(viewModel: TransactionViewModel) {
     var brandName by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Moda Íntima") }
     var niche by remember { mutableStateOf("") }
-    var selectedColor by remember { mutableStateOf("PINK") }
+    var selectedColor by remember { mutableStateOf("#F472B6") }
     var logoText by remember { mutableStateOf("") }
     var selectedIconName by remember { mutableStateOf("CROWN") }
     var logoImageBase64 by remember { mutableStateOf<String?>(null) }
+
+    var localHue by remember { mutableStateOf(330f) }
+    var localSat by remember { mutableStateOf(0.53f) }
+    var localVal by remember { mutableStateOf(0.95f) }
+
+    fun hsvToHexLocal(h: Float, s: Float, v: Float): String {
+        val colorInt = android.graphics.Color.HSVToColor(floatArrayOf(h, s, v))
+        return String.format("#%06X", 0xFFFFFF and colorInt).uppercase()
+    }
+
+    LaunchedEffect(selectedColor) {
+        val clean = selectedColor.trim().removePrefix("#").uppercase()
+        val currentLocalHex = hsvToHexLocal(localHue, localSat, localVal).removePrefix("#").uppercase()
+        if (clean != currentLocalHex) {
+            val result = FloatArray(3) { 0f }
+            try {
+                val colorInt = when (clean) {
+                    "PINK" -> 0xFFF472B6.toInt()
+                    "BLUE" -> 0xFF60A5FA.toInt()
+                    "GREEN" -> 0xFF34D399.toInt()
+                    "ROSE" -> 0xFFF6A6B2.toInt()
+                    "RED" -> 0xFFF87171.toInt()
+                    else -> android.graphics.Color.parseColor("#$clean")
+                }
+                android.graphics.Color.colorToHSV(colorInt, result)
+                localHue = result[0]
+                localSat = result[1]
+                localVal = result[2]
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+    }
 
     // Standard pre-defined options for categories
     val categoryOptions = listOf("Moda Íntima", "Vestuário / Têxtil", "Moda Praia / Fitness", "Artesanato & Crochê", "Calçados & Bolsas", "Outro")
@@ -78,15 +117,48 @@ fun BusinessSetupScreen(viewModel: TransactionViewModel) {
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF0F0C20),
-                        Color(0xFF151030),
-                        Color(0xFF0C091A)
+                        previewScheme.background,
+                        androidx.compose.ui.graphics.lerp(previewScheme.background, previewScheme.primary, 0.08f),
+                        previewScheme.background
                     )
                 )
             )
             .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
+        // Decorative background glowing blur effect (Secondary / dynamic selected color)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(300.dp)
+                .offset(x = 80.dp, y = (-100).dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            previewScheme.secondary.copy(alpha = 0.15f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
+        // Decorative background glowing blur effect (Tertiary / dynamic selected color)
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .size(300.dp)
+                .offset(x = (-80).dp, y = 100.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            previewScheme.tertiary.copy(alpha = 0.15f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
+
         Column(
             modifier = Modifier
                 .widthIn(max = 500.dp)
@@ -123,6 +195,105 @@ fun BusinessSetupScreen(viewModel: TransactionViewModel) {
                     lineHeight = 16.sp,
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
+            }
+
+            // Dynamic Glass containers tinted with selected primary color
+            val cardBgColor = androidx.compose.ui.graphics.lerp(Color(0xFF120E21).copy(alpha = 0.45f), previewScheme.primary, 0.05f).copy(alpha = 0.35f)
+            val cardBorderColor = previewScheme.primary.copy(alpha = 0.18f)
+
+            // QUICK RESTORE / SKIP OPTIONS CARD
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                border = BorderStroke(1.dp, cardBorderColor),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val importLauncher = rememberLauncherForActivityResult(
+                        contract = ActivityResultContracts.GetContent()
+                    ) { uri: Uri? ->
+                        uri?.let {
+                            try {
+                                val inputStream = context.contentResolver.openInputStream(it)
+                                if (inputStream != null) {
+                                    val success = viewModel.importDatabaseFromStream(inputStream)
+                                    if (success) {
+                                        Toast.makeText(context, "Banco de dados importado! Reiniciando...", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Falha ao importar o arquivo.", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Erro: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+
+                    Button(
+                        onClick = { importLauncher.launch("*/*") },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = previewScheme.primary.copy(alpha = 0.12f),
+                            contentColor = Color.White
+                        ),
+                        border = BorderStroke(1.dp, previewScheme.primary.copy(alpha = 0.25f)),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = previewScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Importar Banco",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            viewModel.saveBrandConfig(
+                                brandName = "Ateliê de Costura",
+                                category = "Moda Íntima",
+                                niche = "Produção",
+                                colorScheme = "#F472B6",
+                                logoText = "ATC",
+                                logoIcon = "CROWN",
+                                logoImage = null
+                            )
+                            Toast.makeText(context, "Configuração de fábrica ativada! Você pode alterar as configurações depois se preferir.", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = previewScheme.secondary.copy(alpha = 0.06f),
+                            contentColor = Color.White.copy(alpha = 0.8f)
+                        ),
+                        border = BorderStroke(1.dp, previewScheme.secondary.copy(alpha = 0.15f)),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = Color.White.copy(alpha = 0.5f)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Pular Configurar",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
 
             // LIVE PREVIEW CARD (DYNAMICS COMPOSABLE)
@@ -242,7 +413,8 @@ fun BusinessSetupScreen(viewModel: TransactionViewModel) {
             // INPUT FORM CARD
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1736))
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                border = BorderStroke(1.dp, cardBorderColor)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -352,8 +524,8 @@ fun BusinessSetupScreen(viewModel: TransactionViewModel) {
 
                         OutlinedCard(
                             onClick = { launcher.launch("image/*") },
-                            colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.25f)),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                            colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.15f)),
+                            border = BorderStroke(1.dp, previewScheme.primary.copy(alpha = 0.2f)),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -406,44 +578,191 @@ fun BusinessSetupScreen(viewModel: TransactionViewModel) {
                         }
                     }
 
-                    // Field 5: APP DESIGN COLORS
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Escolha a Paleta do Aplicativo", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    // Field 5: APP DESIGN COLORS (RGB/HSV Canvas Slider)
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            text = "Painel de Cores Customizadas (RGB)",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        
+                        // 2D Saturation / Value Canvas
+                        val pickerHueColor = remember(localHue) { Color.hsv(localHue, 1f, 1f) }
+                        
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(Color.White, pickerHueColor)
+                                    )
+                                )
+                                .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)), RoundedCornerShape(8.dp))
                         ) {
-                            val colorChoices = listOf(
-                                "PINK" to Color(0xFFF472B6),
-                                "BLUE" to Color(0xFF60A5FA),
-                                "GREEN" to Color(0xFF34D399),
-                                "ROSE" to Color(0xFFF6A6B2),
-                                "RED" to Color(0xFFF87171)
-                            )
-                            colorChoices.forEach { (schemeName, uiColor) ->
-                                val selected = selectedColor == schemeName
+                            Canvas(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(localHue) {
+                                        awaitPointerEventScope {
+                                            while (true) {
+                                                val event = awaitPointerEvent()
+                                                val change = event.changes.firstOrNull() ?: continue
+                                                if (change.pressed || change.previousPressed) {
+                                                    val x = change.position.x.coerceIn(0f, size.width.toFloat())
+                                                    val y = change.position.y.coerceIn(0f, size.height.toFloat())
+                                                    localSat = x / size.width.toFloat()
+                                                    localVal = 1f - (y / size.height.toFloat())
+                                                    selectedColor = hsvToHexLocal(localHue, localSat, localVal)
+                                                    change.consume()
+                                                }
+                                            }
+                                        }
+                                    }
+                            ) {
+                                // Overlay vertical gradient
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(Color.Transparent, Color.Black)
+                                    )
+                                )
+                                
+                                // Drag Cursor Marker
+                                val cursorX = localSat * size.width
+                                val cursorY = (1f - localVal) * size.height
+                                
+                                drawCircle(
+                                    color = Color.Black,
+                                    radius = 8.dp.toPx(),
+                                    center = Offset(cursorX, cursorY),
+                                    style = Stroke(width = 2.dp.toPx())
+                                )
+                                drawCircle(
+                                    color = Color.White,
+                                    radius = 6.dp.toPx(),
+                                    center = Offset(cursorX, cursorY),
+                                    style = Stroke(width = 1.5.dp.toPx())
+                                )
+                            }
+                        }
+
+                        // Rainbow 1D Hue Slider Canvas
+                        Text(
+                            text = "Matiz da Cor (Tom)",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(18.dp)
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(
+                                            Color.Red,
+                                            Color.Yellow,
+                                            Color.Green,
+                                            Color.Cyan,
+                                            Color.Blue,
+                                            Color.Magenta,
+                                            Color.Red
+                                        )
+                                    )
+                                )
+                                .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)), RoundedCornerShape(9.dp))
+                        ) {
+                            Canvas(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(localSat, localVal) {
+                                        awaitPointerEventScope {
+                                            while (true) {
+                                                val event = awaitPointerEvent()
+                                                val change = event.changes.firstOrNull() ?: continue
+                                                if (change.pressed || change.previousPressed) {
+                                                    val x = change.position.x.coerceIn(0f, size.width.toFloat())
+                                                    localHue = (x / size.width.toFloat()) * 360f
+                                                    selectedColor = hsvToHexLocal(localHue, localSat, localVal)
+                                                    change.consume()
+                                                }
+                                            }
+                                        }
+                                    }
+                            ) {
+                                val cursorX = (localHue / 360f) * size.width
+                                drawRoundRect(
+                                    color = Color.White,
+                                    topLeft = Offset(cursorX - 4.dp.toPx(), 0f),
+                                    size = androidx.compose.ui.geometry.Size(8.dp.toPx(), size.height),
+                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx()),
+                                    style = Stroke(width = 2.dp.toPx())
+                                )
+                                drawRoundRect(
+                                    color = Color.Black,
+                                    topLeft = Offset(cursorX - 3.dp.toPx(), 1.dp.toPx()),
+                                    size = androidx.compose.ui.geometry.Size(6.dp.toPx(), size.height - 2.dp.toPx()),
+                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(3.dp.toPx()),
+                                    style = Stroke(width = 0.8.dp.toPx())
+                                )
+                            }
+                        }
+
+                        // Preset presets and current selected code row
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)), RoundedCornerShape(8.dp))
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(CircleShape)
-                                        .background(uiColor)
-                                        .border(
-                                            width = if (selected) 3.dp else 0.dp,
-                                            color = if (selected) Color.White else Color.Transparent,
-                                            shape = CircleShape
-                                        )
-                                        .clickable { selectedColor = schemeName },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (selected) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            tint = Color.Black,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
+                                        .size(20.dp)
+                                        .background(Color.hsv(localHue, localSat, localVal), CircleShape)
+                                        .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)), CircleShape)
+                                )
+                                Column {
+                                    Text(
+                                        text = hsvToHexLocal(localHue, localSat, localVal),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                    )
                                 }
+                            }
+
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                listOf(
+                                    Pair("Rosa", "#F472B6"),
+                                    Pair("Azul", "#60A5FA"),
+                                    Pair("Verde", "#34D399"),
+                                    Pair("Ouro", "#F6A6B2"),
+                                    Pair("Rubi", "#F87171")
+                                 ).forEach { preset ->
+                                     Box(
+                                         modifier = Modifier
+                                             .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(4.dp))
+                                             .border(BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f)), RoundedCornerShape(4.dp))
+                                             .clickable {
+                                                 selectedColor = preset.second
+                                             }
+                                             .padding(horizontal = 6.dp, vertical = 3.dp)
+                                     ) {
+                                         Text(preset.first, fontSize = 8.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                     }
+                                 }
                             }
                         }
                     }

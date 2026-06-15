@@ -274,24 +274,28 @@ class TransactionViewModel(
 
     // Export local database to an external stream (for manual backup)
     fun exportDatabaseToStream(outputStream: java.io.OutputStream): Boolean {
-        return com.example.data.GoogleDriveBackupManager.exportLocalDatabase(context, outputStream)
+        return com.example.data.DatabaseBackupManager.exportLocalDatabase(context, outputStream)
+    }
+
+    fun triggerAppRestart() {
+        try {
+            val pm = context.packageManager
+            val intent = pm.getLaunchIntentForPackage(context.packageName)
+            if (intent != null) {
+                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                context.startActivity(intent)
+                android.os.Process.killProcess(android.os.Process.myPid())
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("TransactionViewModel", "Error restarting app", e)
+        }
     }
 
     // Import and restore an external database stream (for manual restore)
     fun importDatabaseFromStream(inputStream: java.io.InputStream): Boolean {
-        val success = com.example.data.GoogleDriveBackupManager.importLocalDatabase(context, inputStream)
+        val success = com.example.data.DatabaseBackupManager.importLocalDatabase(context, inputStream)
         if (success) {
-            // Re-read brand configuration immediately from restored SQLite database
-            viewModelScope.launch {
-                val config = repository.getBrandConfig()
-                _brandConfig.value = config
-                if (config != null && config.isConfigured) {
-                    sessionManager.appName = config.brandName
-                    sessionManager.colorScheme = config.colorScheme
-                    _appName.value = config.brandName
-                    _colorSchemeName.value = config.colorScheme
-                }
-            }
+            triggerAppRestart()
         }
         return success
     }
@@ -303,13 +307,6 @@ class TransactionViewModel(
                 repository.clearAll()
             } catch (e: Exception) {
                 android.util.Log.e("TransactionViewModel", "Error purging user data on logout", e)
-            }
-            try {
-                val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN).build()
-                val googleSignInClient = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(context, gso)
-                googleSignInClient.signOut()
-            } catch (e: Exception) {
-                android.util.Log.e("TransactionViewModel", "Error signing out Google client", e)
             }
             sessionManager.clearSession()
             _isUserLoggedIn.value = false
@@ -437,92 +434,6 @@ class TransactionViewModel(
                 }
             } catch (e: Exception) {
                 _authError.value = "Erro de rede ou conexão: ${e.localizedMessage}"
-            } finally {
-                _authLoading.value = false
-            }
-        }
-    }
-
-    fun loginWithGoogle(email: String, name: String, avatarUrl: String? = null) {
-        viewModelScope.launch {
-            _authLoading.value = true
-            _authError.value = null
-            _authSuccessMessage.value = null
-            try {
-                val userId = "google-" + email.hashCode().toString()
-                val computedAvatarUrl = avatarUrl ?: "https://ui-avatars.com/api/?name=${java.net.URLEncoder.encode(name, "UTF-8")}&background=${if (email.lowercase().contains("vendas")) "34D399" else "F472B6"}&color=1A0A13&bold=true&size=120"
-                
-                // Fetch the Google Drive Access Token
-                var token: String? = null
-                var downloadSuccess = false
-                try {
-                    token = com.example.data.GoogleDriveBackupManager.getGoogleAccessToken(context)
-                    if (token != null) {
-                        val fileId = com.example.data.GoogleDriveBackupManager.findBackupFile(token)
-                        if (fileId != null) {
-                            val res = com.example.data.GoogleDriveBackupManager.downloadBackup(token, fileId, context)
-                            if (res) {
-                                downloadSuccess = true
-                                android.util.Log.i("TransactionViewModel", "Database auto-restored from Google Drive successfully!")
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("TransactionViewModel", "Google Drive sync error during login", e)
-                }
-
-                try {
-                    if (!downloadSuccess) {
-                        // Seed categories if it's a fresh setup
-                        repository.seedMockDataIfEmpty()
-                        // Upload current local database to start a new Google Drive backup stream
-                        if (token != null) {
-                            com.example.data.GoogleDriveBackupManager.uploadBackup(token, context)
-                        }
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("TransactionViewModel", "Google Drive backup uploading error during login", e)
-                }
-
-                // Save user profile locally
-                repository.insertUser(
-                    com.example.data.UserEntity(
-                        id = userId,
-                        email = email,
-                        passwordHash = "google-authenticated-account"
-                    )
-                )
-                
-                sessionManager.saveSession(
-                    userId = userId,
-                    email = email,
-                    authToken = token ?: "google-access-token-placeholder",
-                    name = name,
-                    avatarUrl = computedAvatarUrl
-                )
-                
-                val config = repository.getBrandConfig()
-                _brandConfig.value = config
-                if (config != null && config.isConfigured) {
-                    sessionManager.appName = config.brandName
-                    sessionManager.colorScheme = config.colorScheme
-                    sessionManager.isDarkMode = config.isDarkMode
-                    sessionManager.fontSizeScale = config.fontSizeScale
-                    _appName.value = config.brandName
-                    _colorSchemeName.value = config.colorScheme
-                    _isDarkMode.value = config.isDarkMode
-                    _fontSizeScale.value = config.fontSizeScale
-                }
-                
-                _authSuccessMessage.value = if (downloadSuccess) {
-                    "Conectado à sua conta Google!\nSeu banco de dados SQLite foi encontrado e restaurado com do Google Drive."
-                } else {
-                    "Conectado à sua conta Google!\nNenhum backup prévio localizado. Um novo backup automático foi gerado no seu Google Drive."
-                }
-                _isBrandLoaded.value = true
-                _isUserLoggedIn.value = true
-            } catch (e: Exception) {
-                _authError.value = "Falha ao autenticar com o Google: ${e.localizedMessage}"
             } finally {
                 _authLoading.value = false
             }
@@ -921,23 +832,8 @@ class TransactionViewModel(
         if (!_isCloudBackupEnabled.value) return
         viewModelScope.launch {
             _syncState.value = "SYNCING"
-            val success = if (sessionManager.isLoggedIn) {
-                val token = com.example.data.GoogleDriveBackupManager.getGoogleAccessToken(context)
-                if (token != null) {
-                    com.example.data.GoogleDriveBackupManager.uploadBackup(token, context)
-                } else {
-                    kotlinx.coroutines.delay(1200)
-                    true
-                }
-            } else {
-                kotlinx.coroutines.delay(1200)
-                true
-            }
-            if (success) {
-                _syncState.value = "SYNCED"
-            } else {
-                _syncState.value = "ERROR_SYNC"
-            }
+            kotlinx.coroutines.delay(1200)
+            _syncState.value = "SYNCED"
         }
     }
 

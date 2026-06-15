@@ -131,5 +131,16 @@ abstract class AppDatabase : RoomDatabase() {
                 instance
             }
         }
+
+        fun clearInstance() {
+            synchronized(this) {
+                try {
+                    INSTANCE?.close()
+                } catch (e: Exception) {
+                    android.util.Log.e("AppDatabase", "Error closing database during reset", e)
+                }
+                INSTANCE = null
+            }
+        }
     }
 }

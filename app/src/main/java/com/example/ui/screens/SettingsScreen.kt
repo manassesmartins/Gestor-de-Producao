@@ -29,6 +29,13 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import coil.compose.AsyncImage
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
@@ -141,7 +148,7 @@ fun SettingsScreen(
             }
         }
 
-        // Google Account Profile Card
+        // User Profile Card
         item {
             val userNameStr = viewModel.sessionManager.userName.ifBlank { "Usuário Ativo" }
             val avatarUrlStr = viewModel.sessionManager.userAvatar
@@ -616,6 +623,39 @@ fun SettingsScreen(
             val fontSizeScale by viewModel.fontSizeScale.collectAsState()
             var tempAppName by remember(appNameState) { mutableStateOf(appNameState) }
 
+            var localHue by remember { mutableStateOf(330f) }
+            var localSat by remember { mutableStateOf(0.53f) }
+            var localVal by remember { mutableStateOf(0.95f) }
+
+            fun hsvToHexLocal(h: Float, s: Float, v: Float): String {
+                val colorInt = android.graphics.Color.HSVToColor(floatArrayOf(h, s, v))
+                return String.format("#%06X", 0xFFFFFF and colorInt).uppercase()
+            }
+
+            LaunchedEffect(colorSchemeName) {
+                val clean = colorSchemeName.trim().removePrefix("#").uppercase()
+                val currentLocalHex = hsvToHexLocal(localHue, localSat, localVal).removePrefix("#").uppercase()
+                if (clean != currentLocalHex) {
+                    val result = FloatArray(3) { 0f }
+                    try {
+                        val colorInt = when (clean) {
+                            "PINK" -> 0xFFF472B6.toInt()
+                            "BLUE" -> 0xFF60A5FA.toInt()
+                            "GREEN" -> 0xFF34D399.toInt()
+                            "ROSE" -> 0xFFF6A6B2.toInt()
+                            "RED" -> 0xFFF87171.toInt()
+                            else -> android.graphics.Color.parseColor("#$clean")
+                        }
+                        android.graphics.Color.colorToHSV(colorInt, result)
+                        localHue = result[0]
+                        localSat = result[1]
+                        localVal = result[2]
+                    } catch (e: Exception) {
+                        // ignore
+                    }
+                }
+            }
+
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "PERSONALIZAÇÃO & ACESSIBILIDADE",
@@ -757,60 +797,203 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
                 Divider(color = Color.White.copy(alpha = 0.05f))
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Layout Colors / Theme Presets Option
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                         // Layout Colors / Theme Presets Option
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "Paleta de Cores do Layout",
-                        fontSize = 14.sp,
+                        text = "Painel de Cores do Layout (RGB)",
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = OnSurface
                     )
+                    
+                    // 2D Saturation / Value Canvas
+                    val hueColor = remember(localHue) { Color.hsv(localHue, 1f, 1f) }
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(130.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(Color.White, hueColor)
+                                )
+                            )
+                            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)), RoundedCornerShape(8.dp))
+                    ) {
+                        Canvas(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(localHue) {
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            val change = event.changes.firstOrNull() ?: continue
+                                            if (change.pressed || change.previousPressed) {
+                                                val x = change.position.x.coerceIn(0f, size.width.toFloat())
+                                                val y = change.position.y.coerceIn(0f, size.height.toFloat())
+                                                localSat = x / size.width.toFloat()
+                                                localVal = 1f - (y / size.height.toFloat())
+                                                viewModel.updateColorScheme(hsvToHexLocal(localHue, localSat, localVal))
+                                                change.consume()
+                                            }
+                                        }
+                                    }
+                                }
+                        ) {
+                            // Render internal overlay vertical gradient
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(Color.Transparent, Color.Black)
+                                )
+                            )
+                            
+                            // Draw the dynamic coordinate cursor
+                            val cursorX = localSat * size.width
+                            val cursorY = (1f - localVal) * size.height
+                            
+                            drawCircle(
+                                color = Color.Black,
+                                radius = 9.dp.toPx(),
+                                center = Offset(cursorX, cursorY),
+                                style = Stroke(width = 2.5.dp.toPx())
+                            )
+                            drawCircle(
+                                color = Color.White,
+                                radius = 7.dp.toPx(),
+                                center = Offset(cursorX, cursorY),
+                                style = Stroke(width = 2.dp.toPx())
+                            )
+                        }
+                    }
 
-                    val colorSchemes = listOf(
-                        ColorSchemeUiItem("PINK", "Orquídea", Color(0xFFF472B6), Color(0xFFDB2777)),
-                        ColorSchemeUiItem("BLUE", "Safira", Color(0xFF60A5FA), Color(0xFF2563EB)),
-                        ColorSchemeUiItem("GREEN", "Esmeralda", Color(0xFF34D399), Color(0xFF059669)),
-                        ColorSchemeUiItem("ROSE", "Ouro Rosé", Color(0xFFF6A6B2), Color(0xFFD8577A)),
-                        ColorSchemeUiItem("RED", "Rubi", Color(0xFFF87171), Color(0xFFDC2626))
+                    // Rainbow Hue Slider Canvas (1D HUE Picker)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Matiz da Cor (Tom)",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = OnSurfaceVariant
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(18.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color.Red,
+                                        Color.Yellow,
+                                        Color.Green,
+                                        Color.Cyan,
+                                        Color.Blue,
+                                        Color.Magenta,
+                                        Color.Red
+                                    )
+                                )
+                            )
+                            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)), RoundedCornerShape(9.dp))
                     ) {
-                        colorSchemes.forEach { item ->
-                            val isSelected = colorSchemeName.uppercase() == item.id
-                            val displayCol = if (isDarkMode) item.darkColor else item.lightColor
+                        Canvas(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(localSat, localVal) {
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            val change = event.changes.firstOrNull() ?: continue
+                                            if (change.pressed || change.previousPressed) {
+                                                val x = change.position.x.coerceIn(0f, size.width.toFloat())
+                                                localHue = (x / size.width.toFloat()) * 360f
+                                                viewModel.updateColorScheme(hsvToHexLocal(localHue, localSat, localVal))
+                                                change.consume()
+                                            }
+                                        }
+                                    }
+                                }
+                        ) {
+                            val cursorX = (localHue / 360f) * size.width
+                            drawRoundRect(
+                                color = Color.White,
+                                topLeft = Offset(cursorX - 4.dp.toPx(), 0f),
+                                size = androidx.compose.ui.geometry.Size(8.dp.toPx(), size.height),
+                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx()),
+                                style = Stroke(width = 2.5.dp.toPx())
+                            )
+                            drawRoundRect(
+                                color = Color.Black,
+                                topLeft = Offset(cursorX - 3.dp.toPx(), 1.dp.toPx()),
+                                size = androidx.compose.ui.geometry.Size(6.dp.toPx(), size.height - 2.dp.toPx()),
+                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(3.dp.toPx()),
+                                style = Stroke(width = 1.dp.toPx())
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Row showing final color preview and technical hex
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.05f)), RoundedCornerShape(8.dp))
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             Box(
                                 modifier = Modifier
-                                    .size(44.dp)
-                                    .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
-                                    .border(
-                                        width = if (isSelected) 2.dp else 1.dp,
-                                        color = if (isSelected) Primary else Color.White.copy(alpha = 0.1f),
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                    .clickable { viewModel.updateColorScheme(item.id) }
-                                    .padding(4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .background(displayCol, CircleShape)
+                                    .size(24.dp)
+                                    .background(Color.hsv(localHue, localSat, localVal), CircleShape)
+                                    .border(BorderStroke(1.5.dp, Color.White.copy(alpha = 0.3f)), CircleShape)
+                            )
+                            Column {
+                                val hexString = hsvToHexLocal(localHue, localSat, localVal)
+                                Text(
+                                    text = "Cor Selecionada",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = OnSurface
+                                )
+                                Text(
+                                    text = "Código Hex: $hexString",
+                                    fontSize = 10.sp,
+                                    color = OnSurfaceVariant,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                                 )
                             }
                         }
+                        
+                        // Small buttons with presets that users can quick-click to jump to standard colors if desired!
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            listOf(
+                                Pair("Rosa", "#F472B6"),
+                                Pair("Azul", "#60A5FA"),
+                                Pair("Verde", "#34D399"),
+                                Pair("Ouro", "#F6A6B2"),
+                                Pair("Rubi", "#F87171")
+                             ).forEach { preset ->
+                                 Box(
+                                     modifier = Modifier
+                                         .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(4.dp))
+                                         .border(BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f)), RoundedCornerShape(4.dp))
+                                         .clickable {
+                                             viewModel.updateColorScheme(preset.second)
+                                         }
+                                         .padding(horizontal = 6.dp, vertical = 3.dp)
+                                 ) {
+                                     Text(preset.first, fontSize = 8.sp, color = OnSurface, fontWeight = FontWeight.Bold)
+                                 }
+                             }
+                        }
                     }
-                    val currentLabel = colorSchemes.firstOrNull { it.id == colorSchemeName.uppercase() }?.name ?: "Padrão"
-                    Text(
-                        text = "Tema selecionado: $currentLabel",
-                        fontSize = 11.sp,
-                        color = OnSurfaceVariant,
-                        fontWeight = FontWeight.Medium
-                    )
 
                     Spacer(modifier = Modifier.height(16.dp))
                     Divider(color = Color.White.copy(alpha = 0.05f))

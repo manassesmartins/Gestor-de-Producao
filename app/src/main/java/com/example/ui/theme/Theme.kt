@@ -13,7 +13,83 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.BorderStroke
 
+fun parseHexToColor(hex: String): Color {
+    val clean = hex.trim().replace("#", "")
+    return try {
+        if (clean.length == 6) {
+            Color(android.graphics.Color.parseColor("#$clean"))
+        } else if (clean.length == 8) {
+            Color(android.graphics.Color.parseColor("#$clean"))
+        } else {
+            Color(0xFFF472B6) // Fallback pink
+        }
+    } catch (e: Exception) {
+        Color(0xFFF472B6)
+    }
+}
+
+fun blendColor(color1: Color, color2: Color, ratio: Float): Color {
+    val r = color1.red + (color2.red - color1.red) * ratio
+    val g = color1.green + (color2.green - color1.green) * ratio
+    val b = color1.blue + (color2.blue - color1.blue) * ratio
+    val a = color1.alpha + (color2.alpha - color1.alpha) * ratio
+    return Color(r, g, b, a)
+}
+
+fun createCustomColorScheme(hex: String, isDark: Boolean): ColorScheme {
+    val baseColor = parseHexToColor(hex)
+    return if (isDark) {
+        val bgValue = blendColor(baseColor, Color(0xFF000000), 0.93f)
+        val surfaceValue = blendColor(baseColor, Color(0xFF000000), 0.88f)
+        val surfaceVariantValue = blendColor(baseColor, Color(0xFF000000), 0.76f)
+        val secondaryValue = blendColor(baseColor, Color(0xFFFFFFFF), 0.35f)
+        val tertiaryValue = blendColor(baseColor, Color(0xFFFFFFFF), 0.50f)
+        
+        darkColorScheme(
+            primary = baseColor,
+            onPrimary = if (baseColor.isColorLight()) Color(0xFF1E0714) else Color(0xFFFFFFFF),
+            secondary = secondaryValue,
+            onSecondary = Color(0xFF1E0714),
+            tertiary = tertiaryValue,
+            onTertiary = Color(0xFF1E0714),
+            error = Color(0xFFF87171),
+            background = bgValue,
+            onBackground = Color(0xFFFAF5FF),
+            surface = surfaceValue,
+            onSurface = Color(0xFFFAF5FF),
+            surfaceVariant = surfaceVariantValue,
+            onSurfaceVariant = secondaryValue
+        )
+    } else {
+        val bgValue = blendColor(baseColor, Color(0xFFFFFFFF), 0.95f)
+        val surfaceValue = Color(0xFFFFFFFF)
+        val surfaceVariantValue = blendColor(baseColor, Color(0xFFFFFFFF), 0.85f)
+        val secondaryValue = baseColor.copy(alpha = 0.85f)
+        val tertiaryValue = baseColor.copy(alpha = 0.70f)
+
+        lightColorScheme(
+            primary = baseColor,
+            onPrimary = if (baseColor.isColorLight()) Color(0xFF000000) else Color(0xFFFFFFFF),
+            secondary = secondaryValue,
+            onSecondary = Color(0xFFFFFFFF),
+            tertiary = tertiaryValue,
+            onTertiary = Color(0xFFFFFFFF),
+            error = Color(0xFFDC2626),
+            background = bgValue,
+            onBackground = blendColor(baseColor, Color(0xFF000000), 0.85f),
+            surface = surfaceValue,
+            onSurface = blendColor(baseColor, Color(0xFF000000), 0.85f),
+            surfaceVariant = surfaceVariantValue,
+            onSurfaceVariant = blendColor(baseColor, Color(0xFF000000), 0.65f)
+        )
+    }
+}
+
 fun getDynamicColorScheme(schemeName: String, isDark: Boolean): ColorScheme {
+    val clean = schemeName.trim()
+    if (clean.startsWith("#") || (clean.length == 6 && clean.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' })) {
+        return createCustomColorScheme(clean, isDark)
+    }
     return if (isDark) {
         when (schemeName.uppercase()) {
             "BLUE" -> darkColorScheme(
@@ -216,20 +292,24 @@ fun Color.isColorLight(): Boolean {
 @Composable
 fun getGlassContainerColor(): Color {
     val isLight = MaterialTheme.colorScheme.background.isColorLight()
+    val primary = MaterialTheme.colorScheme.primary
     return if (isLight) {
         MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
     } else {
-        Color.White.copy(alpha = 0.05f)
+        // Dynamic premium glass look with warm dynamic ambient tint from primary color
+        blendColor(Color(0xFF120E21).copy(alpha = 0.45f), primary, 0.05f).copy(alpha = 0.35f)
     }
 }
 
 @Composable
 fun getGlassBorderColor(): Color {
     val isLight = MaterialTheme.colorScheme.background.isColorLight()
+    val primary = MaterialTheme.colorScheme.primary
     return if (isLight) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+        primary.copy(alpha = 0.35f)
     } else {
-        Color.White.copy(alpha = 0.12f)
+        // Border gets elegant subtle glow based on chosen primary palette
+        primary.copy(alpha = 0.18f)
     }
 }
 
