@@ -36,7 +36,7 @@ android {
     // increments its version code, avoiding manually-triggered package installation collisions.
     val dynamicVersionCode = (System.currentTimeMillis() / 60000).toInt()
     versionCode = dynamicVersionCode
-    versionName = "1.3"
+    versionName = "1.3.59"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
