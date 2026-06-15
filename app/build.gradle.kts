@@ -15,7 +15,7 @@ android {
     minSdk = 24
     targetSdk = 36
     versionCode = 2
-    versionName = "1.2.64"
+    versionName = "1.2"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -41,7 +41,17 @@ android {
       isCrunchPngs = false
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("release")
+      
+      // Fallback to debugConfig if key passwords or the release keystore are missing.
+      // This ensures that all APKs generated share the identical stable signature, preventing package conflicts on update.
+      val keystorePathEnv = System.getenv("KEYSTORE_PATH")
+      val hasKeystore = keystorePathEnv != null && file(keystorePathEnv).exists()
+      val hasPassword = !System.getenv("STORE_PASSWORD").isNullOrEmpty()
+      if (hasKeystore && hasPassword) {
+        signingConfig = signingConfigs.getByName("release")
+      } else {
+        signingConfig = signingConfigs.getByName("debugConfig")
+      }
     }
     debug {
       signingConfig = signingConfigs.getByName("debugConfig")

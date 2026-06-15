@@ -278,83 +278,8 @@ class GitHubUpdater(private val context: Context) {
 
             if (foundReleaseUpdate) return@withContext
 
-            // Step 2: If no release update was found, check commits of the specific APK file path on GitHub
-            val encodedApkPath = java.net.URLEncoder.encode(apkPath, "UTF-8")
-            val commitsUrl = "https://api.github.com/repos/$owner/$repo/commits?per_page=1&sha=$branch&path=$encodedApkPath"
-            val commitsRequest = Request.Builder()
-                .url(commitsUrl)
-                .addHeader("Accept", "application/vnd.github+json")
-                .addHeader("User-Agent", "Mozilla/5.0")
-                .build()
-
-            var commitsRequestSuccess = false
-            try {
-                client.newCall(commitsRequest).execute().use { response ->
-                    if (response.isSuccessful) {
-                        commitsRequestSuccess = true
-                        val bodyString = response.body?.string()
-                        if (!bodyString.isNullOrEmpty()) {
-                            val commitsArray = JSONArray(bodyString)
-                            if (commitsArray.length() > 0) {
-                                val latestCommitObj = commitsArray.getJSONObject(0)
-                                val sha = latestCommitObj.optString("sha", "")
-                                val commitObj = latestCommitObj.optJSONObject("commit")
-                                val message = commitObj?.optString("message", "Nova alteração de código") ?: ""
-                                val authorObj = commitObj?.optJSONObject("author")
-                                val authorName = authorObj?.optString("name", "") ?: ""
-                                val dateString = authorObj?.optString("date", "")?.take(10) ?: ""
-
-                                val savedCommitSha = sharedPrefs.getString("last_checked_commit_sha", "") ?: ""
-
-                                if (sha != savedCommitSha || forceNotify) {
-                                    // A new commit is detected on GitHub!
-                                    latestCheckedSha = sha
-                                    sharedPrefs.edit().putString("pending_commit_sha", sha).apply()
-                                    sharedPrefs.edit().putString("pending_notified_version", "").apply()
-                                    val downloadUrl = "https://raw.githubusercontent.com/$owner/$repo/$branch/$apkPath"
-                                    _status.value = UpdateStatus.UpdateAvailable(
-                                        version = "Commit ${sha.take(7)}",
-                                        changelog = "Commit por $authorName:\n$message",
-                                        downloadUrl = downloadUrl,
-                                        type = UpdateType.COMMIT,
-                                        itemName = message,
-                                        date = dateString
-                                    )
-                                    return@withContext
-                                }
-                            }
-                        }
-                    } else {
-                        Log.e("GitHubUpdater", "Commits API returned error code ${response.code}")
-                        if (forceNotify) {
-                            if (response.code == 404) {
-                                // Treating 404 as "Up to Date" ensures that if there's no custom public release/commit pushed yet,
-                                // the app gracefully reports it is in the latest stable compiled version rather than throwing errors.
-                                _status.value = UpdateStatus.UpToDate
-                            } else if (response.code == 403) {
-                                _status.value = UpdateStatus.Error("Limite de requisições da API do GitHub excedido (HTTP 403).")
-                            } else {
-                                _status.value = UpdateStatus.Error("Erro na API do GitHub (HTTP ${response.code}).")
-                            }
-                        } else {
-                            _status.value = UpdateStatus.Idle
-                        }
-                        return@withContext
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("GitHubUpdater", "Failed to check commits", e)
-                if (forceNotify) {
-                    _status.value = UpdateStatus.Error("Conexão falhou ao verificar commits: ${e.localizedMessage}")
-                } else {
-                    _status.value = UpdateStatus.Idle
-                }
-                return@withContext
-            }
-
-            if (commitsRequestSuccess) {
-                _status.value = if (forceNotify) UpdateStatus.UpToDate else UpdateStatus.Idle
-            }
+            // Step 2: Skip Git commit based checking entirely as requested by the user to ONLY show standard releases/version.json
+            _status.value = if (forceNotify) UpdateStatus.UpToDate else UpdateStatus.Idle
         } catch (e: Exception) {
             Log.e("GitHubUpdater", "Error checking for updates", e)
             if (forceNotify) {
