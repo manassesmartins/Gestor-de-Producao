@@ -1,7 +1,0 @@
-{
-  "version": "1.2.60",
-  "changelog": "Build automático: Commit build: simplify Google Auth and project configuration
-
-Remove unused OAuth client IDs, simplify Google Sign-In options, and revert to static versioning for the debug build to clean up build logic and authentication flows.",
-  "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
-}
