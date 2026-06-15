@@ -1,0 +1,9 @@
+{
+  "version": "1.2.65",
+  "changelog": "Build automático: Commit ci: automate versioning and improve signing logic
+
+- Configure workflow to dynamically update versionCode.
+- Update release build to fallback to debug signing config when credentials are missing.
+- Remove deprecated GitHub commit-based update logic.",
+  "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
+}

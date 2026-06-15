@@ -14,8 +14,8 @@ android {
     applicationId = "com.aistudio.gestordeproducao.xqwzpt"
     minSdk = 24
     targetSdk = 36
-    versionCode = 2
-    versionName = "1.2"
+    versionCode = 165
+    versionName = "1.2.65"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
