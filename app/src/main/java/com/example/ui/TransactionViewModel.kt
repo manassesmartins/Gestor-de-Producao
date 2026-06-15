@@ -506,8 +506,12 @@ class TransactionViewModel(
                 if (config != null && config.isConfigured) {
                     sessionManager.appName = config.brandName
                     sessionManager.colorScheme = config.colorScheme
+                    sessionManager.isDarkMode = config.isDarkMode
+                    sessionManager.fontSizeScale = config.fontSizeScale
                     _appName.value = config.brandName
                     _colorSchemeName.value = config.colorScheme
+                    _isDarkMode.value = config.isDarkMode
+                    _fontSizeScale.value = config.fontSizeScale
                 }
                 
                 _authSuccessMessage.value = if (downloadSuccess) {
@@ -536,8 +540,12 @@ class TransactionViewModel(
                 if (config != null && config.isConfigured) {
                     sessionManager.appName = config.brandName
                     sessionManager.colorScheme = config.colorScheme
+                    sessionManager.isDarkMode = config.isDarkMode
+                    sessionManager.fontSizeScale = config.fontSizeScale
                     _appName.value = config.brandName
                     _colorSchemeName.value = config.colorScheme
+                    _isDarkMode.value = config.isDarkMode
+                    _fontSizeScale.value = config.fontSizeScale
                 }
                 _isBrandLoaded.value = true
             }
@@ -562,12 +570,58 @@ class TransactionViewModel(
                 logoText = logoText,
                 logoIcon = logoIcon,
                 logoImage = logoImage,
-                isConfigured = true
+                isConfigured = true,
+                isDarkMode = sessionManager.isDarkMode,
+                fontSizeScale = sessionManager.fontSizeScale
             )
             repository.insertBrandConfig(entity)
             updateAppName(brandName)
             updateColorScheme(colorScheme)
             triggerSyncSimulation()
+        }
+    }
+
+    fun savePersonalizationConfig(
+        appName: String,
+        colorScheme: String,
+        isDarkMode: Boolean,
+        fontSizeScale: Float
+    ) {
+        viewModelScope.launch {
+            sessionManager.appName = appName
+            sessionManager.colorScheme = colorScheme
+            sessionManager.isDarkMode = isDarkMode
+            sessionManager.fontSizeScale = fontSizeScale
+            
+            _appName.value = appName
+            _colorSchemeName.value = colorScheme
+            _isDarkMode.value = isDarkMode
+            _fontSizeScale.value = fontSizeScale
+
+            val currentConfig = repository.getBrandConfig()
+            val entity = if (currentConfig != null) {
+                currentConfig.copy(
+                    brandName = appName,
+                    colorScheme = colorScheme,
+                    isDarkMode = isDarkMode,
+                    fontSizeScale = fontSizeScale,
+                    isConfigured = true
+                )
+            } else {
+                com.example.data.BrandConfigEntity(
+                    brandName = appName,
+                    category = "Moda Íntima",
+                    niche = "Produção",
+                    colorScheme = colorScheme,
+                    logoText = if (appName.isNotBlank()) appName.take(3).uppercase() else "MS",
+                    logoIcon = "CROWN",
+                    logoImage = null,
+                    isConfigured = true,
+                    isDarkMode = isDarkMode,
+                    fontSizeScale = fontSizeScale
+                )
+            }
+            repository.insertBrandConfig(entity)
         }
     }
 
@@ -586,21 +640,45 @@ class TransactionViewModel(
     fun updateAppName(name: String) {
         sessionManager.appName = name
         _appName.value = name
+        savePersonalizationConfig(
+            appName = name,
+            colorScheme = _colorSchemeName.value,
+            isDarkMode = _isDarkMode.value,
+            fontSizeScale = _fontSizeScale.value
+        )
     }
 
     fun updateColorScheme(scheme: String) {
         sessionManager.colorScheme = scheme
         _colorSchemeName.value = scheme
+        savePersonalizationConfig(
+            appName = _appName.value,
+            colorScheme = scheme,
+            isDarkMode = _isDarkMode.value,
+            fontSizeScale = _fontSizeScale.value
+        )
     }
 
     fun updateDarkMode(enabled: Boolean) {
         sessionManager.isDarkMode = enabled
         _isDarkMode.value = enabled
+        savePersonalizationConfig(
+            appName = _appName.value,
+            colorScheme = _colorSchemeName.value,
+            isDarkMode = enabled,
+            fontSizeScale = _fontSizeScale.value
+        )
     }
 
     fun updateFontSizeScale(scale: Float) {
         sessionManager.fontSizeScale = scale
         _fontSizeScale.value = scale
+        savePersonalizationConfig(
+            appName = _appName.value,
+            colorScheme = _colorSchemeName.value,
+            isDarkMode = _isDarkMode.value,
+            fontSizeScale = scale
+        )
     }
 
     // Navigation and UX states

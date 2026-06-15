@@ -353,51 +353,7 @@ fun NewTransactionScreen(
                 }
             }
 
-            // Dynamic Synchronization status preview toggler
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = null,
-                            tint = Tertiary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Column {
-                            Text(
-                                text = "Sincronizar na Nuvem",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = OnSurface
-                            )
-                            Text(
-                                text = "Sincronização em tempo real na sua conta",
-                                fontSize = 12.sp,
-                                color = OnSurfaceVariant
-                            )
-                        }
-                    }
-                    Switch(
-                        checked = toggleSync.value,
-                        onCheckedChange = { toggleSync.value = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = OnPrimary,
-                            checkedTrackColor = Tertiary,
-                            uncheckedThumbColor = OnSurfaceVariant,
-                            uncheckedTrackColor = Color.White.copy(alpha = 0.1f)
-                        )
-                    )
-                }
-            }
+
 
             // Submit Button
             item {

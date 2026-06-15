@@ -13,5 +13,7 @@ data class BrandConfigEntity(
     val logoText: String,
     val logoIcon: String,
     val logoImage: String? = null,
-    val isConfigured: Boolean = false
+    val isConfigured: Boolean = false,
+    val isDarkMode: Boolean = true,
+    val fontSizeScale: Float = 1.0f
 )

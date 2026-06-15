@@ -21,7 +21,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         EmployeePaymentEntity::class,
         ProductModelEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -110,6 +110,13 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `brand_config` ADD COLUMN `isDarkMode` INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE `brand_config` ADD COLUMN `fontSizeScale` REAL NOT NULL DEFAULT 1.0")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -117,7 +124,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ms_modaintima_database"
                 )
-                    .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                    .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

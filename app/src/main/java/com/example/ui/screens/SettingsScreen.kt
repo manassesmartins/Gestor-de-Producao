@@ -811,170 +811,35 @@ fun SettingsScreen(
                         color = OnSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
-                }
-            }
-        }
-        
-        // P2P MQTT SYNC WITH WEB - DISABILITADO LOCALMENTE
-        if (false) item {
-            var pinCode by remember { mutableStateOf("") }
-            var isSyncing by remember { mutableStateOf(false) }
-            val coroutineScope = rememberCoroutineScope()
-            val txs by viewModel.allTransactions.collectAsState()
-            val cats by viewModel.allCategories.collectAsState()
-            val orders by viewModel.allOrders.collectAsState()
-            val calcs by viewModel.allCalculations.collectAsState()
-            val bConfig by viewModel.brandConfig.collectAsState()
-            
-            val scanner = remember {
-                val options = com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions.Builder()
-                    .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_QR_CODE)
-                    .enableAutoZoom()
-                    .build()
-                com.google.mlkit.vision.codescanner.GmsBarcodeScanning.getClient(context, options)
-            }
-            
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "CONECTAR AO COMPUTADOR / WEB",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Primary,
-                    letterSpacing = 1.sp
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                Text(
-                    text = "Acesse o site da versão desktop pelo computador, e use o scanner de QR Code ou digite o Código de 6 dígitos para espelhar todos os dados em tempo real (P2P).",
-                    fontSize = 12.sp,
-                    color = OnSurfaceVariant,
-                    lineHeight = 16.sp,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-                
-                OutlinedTextField(
-                    value = pinCode,
-                    onValueChange = { if (it.length <= 6) pinCode = it },
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                    placeholder = { Text("Código de 6 dígitos") },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Primary,
-                        unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
-                        focusedTextColor = OnSurface,
-                        unfocusedTextColor = OnSurface
-                    ),
-                    trailingIcon = {
-                        IconButton(onClick = {
-                            try {
-                                scanner.startScan()
-                                    .addOnSuccessListener { barcode ->
-                                        barcode.rawValue?.let { scannedText ->
-                                            val regex = Regex("\\b\\d{6}\\b")
-                                            val match = regex.find(scannedText)
-                                            if (match != null) {
-                                                val pin = match.value
-                                                pinCode = pin
-                                                Toast.makeText(context, "Conectando ao código: $pin", Toast.LENGTH_SHORT).show()
-                                                
-                                                if (!isSyncing) {
-                                                    isSyncing = true
-                                                    coroutineScope.launch {
-                                                        val success = com.example.data.MqttSyncManager.syncWithWeb(
-                                                            pinCode = pin,
-                                                            context = context,
-                                                            transactions = txs,
-                                                            categories = cats,
-                                                            orders = orders,
-                                                            calculations = calcs,
-                                                            brandConfig = bConfig?.let { config ->
-                                                                org.json.JSONObject().apply {
-                                                                    put("brandName", config.brandName)
-                                                                    put("category", config.category)
-                                                                    put("niche", config.niche)
-                                                                    put("colorScheme", config.colorScheme)
-                                                                    put("logoIcon", config.logoIcon)
-                                                                    put("logoText", config.logoText)
-                                                                    put("logoImage", config.logoImage)
-                                                                    put("isConfigured", config.isConfigured)
-                                                                }
-                                                            }
-                                                        )
-                                                        withContext(Dispatchers.Main) {
-                                                            isSyncing = false
-                                                            pinCode = ""
-                                                            Toast.makeText(context, if (success) "Dados espelhados com sucesso via QR!" else "Erro na sincronização, tente novamente.", Toast.LENGTH_SHORT).show()
-                                                        }
-                                                    }
-                                                }
-                                            } else {
-                                                Toast.makeText(context, "Código de 6 dígitos não encontrado no QR Code.", Toast.LENGTH_LONG).show()
-                                            }
-                                        } ?: run {
-                                            Toast.makeText(context, "QR Code vazio.", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                    .addOnFailureListener { e ->
-                                        Toast.makeText(context, "Leitura cancelada ou falhou.", Toast.LENGTH_SHORT).show()
-                                    }
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "Erro ao iniciar scanner: ${e.message}", Toast.LENGTH_LONG).show()
-                            }
-                        }) {
-                            Icon(imageVector = Icons.Default.QrCodeScanner, contentDescription = "Escanear QR Code", tint = Primary)
-                        }
-                    },
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = {
-                        if (pinCode.length == 6 && !isSyncing) {
-                            isSyncing = true
-                            coroutineScope.launch {
-                                val success = com.example.data.MqttSyncManager.syncWithWeb(
-                                    pinCode = pinCode,
-                                    context = context,
-                                    transactions = txs,
-                                    categories = cats,
-                                    orders = orders,
-                                    calculations = calcs,
-                                    brandConfig = bConfig?.let { config ->
-                                        org.json.JSONObject().apply {
-                                            put("brandName", config.brandName)
-                                            put("category", config.category)
-                                            put("niche", config.niche)
-                                            put("colorScheme", config.colorScheme)
-                                            put("logoIcon", config.logoIcon)
-                                            put("logoText", config.logoText)
-                                            put("logoImage", config.logoImage)
-                                            put("isConfigured", config.isConfigured)
-                                        }
-                                    }
-                                )
-                                withContext(Dispatchers.Main) {
-                                    isSyncing = false
-                                    pinCode = "" // Clear after sync
-                                    Toast.makeText(context, if(success) "Dados espelhados com sucesso!" else "Erro, tente novamente.", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        } else if (pinCode.length != 6) {
-                            Toast.makeText(context, "Digite os 6 dígitos mostrados no Computador", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = OnPrimary),
-                    shape = RoundedCornerShape(8.dp),
-                    enabled = !isSyncing
-                ) {
-                    if (isSyncing) {
-                        CircularProgressIndicator(color = OnPrimary, modifier = Modifier.size(16.dp))
-                    } else {
-                        Icon(imageVector = Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Divider(color = Color.White.copy(alpha = 0.05f))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = {
+                            viewModel.savePersonalizationConfig(
+                                appName = tempAppName,
+                                colorScheme = colorSchemeName,
+                                isDarkMode = isDarkMode,
+                                fontSizeScale = fontSizeScale
+                            )
+                            Toast.makeText(context, "Todas as configurações salvas no banco de dados local!", Toast.LENGTH_LONG).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Primary,
+                            contentColor = OnPrimary
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Save,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Iniciar Espelhamento", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Salvar Todas as Configurações", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
             }
