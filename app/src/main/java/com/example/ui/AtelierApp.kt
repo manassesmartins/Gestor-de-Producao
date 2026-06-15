@@ -66,8 +66,8 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
     }
 
     if (!isUserLoggedIn) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            MsModaIntimaLoginScreen(viewModel = viewModel)
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = Primary)
 
             // Overlays on top of Login Screen
             when (val stat = updaterStatus) {
@@ -1031,22 +1031,6 @@ fun MsModaIntimaTopBar(
     val SurfaceDark = MaterialTheme.colorScheme.background
     val ErrorColor = MaterialTheme.colorScheme.error
 
-    // Active network checker
-    var isConnected by remember { mutableStateOf(true) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            isConnected = try {
-                val cm = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
-                val activeNetwork = cm?.activeNetwork
-                val caps = cm?.getNetworkCapabilities(activeNetwork)
-                caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-            } catch (e: Exception) {
-                false
-            }
-            kotlinx.coroutines.delay(4000)
-        }
-    }
-
     CenterAlignedTopAppBar(
         title = {
             Row(
@@ -1060,13 +1044,6 @@ fun MsModaIntimaTopBar(
                     fontWeight = FontWeight.Bold,
                     color = Primary,
                     fontFamily = FontFamily.SansSerif
-                )
-                // Small indicator dot (green connected / gray disconnected)
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(if (isConnected) Color(0xFF10B981) else Color(0xFF9CA3AF))
                 )
             }
         },

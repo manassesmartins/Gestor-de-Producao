@@ -36,7 +36,7 @@ class SessionManager(context: Context) {
         set(value) = prefs.edit().putFloat(KEY_FONT_SIZE_SCALE, value).apply()
 
     var userName: String
-        get() = prefs.getString("user_name", "") ?: ""
+        get() = prefs.getString("user_name", "Administrador Local") ?: "Administrador Local"
         set(value) = prefs.edit().putString("user_name", value).apply()
 
     var userAvatar: String
@@ -66,13 +66,13 @@ class SessionManager(context: Context) {
     }
 
     val isLoggedIn: Boolean
-        get() = prefs.getBoolean(KEY_IS_LOGGED_IN, false)
+        get() = true
 
     val userId: String?
-        get() = prefs.getString(KEY_USER_ID, null)
+        get() = prefs.getString(KEY_USER_ID, "local-admin") ?: "local-admin"
 
     var userEmail: String?
-        get() = prefs.getString(KEY_USER_EMAIL, null)
+        get() = prefs.getString(KEY_USER_EMAIL, "banco.local@backup.com") ?: "banco.local@backup.com"
         set(value) = prefs.edit().putString(KEY_USER_EMAIL, value).apply()
 
     val authToken: String?

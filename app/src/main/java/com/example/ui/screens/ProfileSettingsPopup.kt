@@ -1,7 +1,5 @@
 package com.example.ui.screens
 
-import android.content.Context
-import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,7 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,39 +25,69 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
-import com.example.data.BrandConfigEntity
 import com.example.ui.TransactionViewModel
+import com.example.ui.AppTab
 import com.example.ui.utils.rememberBitmapFromBase64
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileSettingsPopup(
     onDismiss: () -> Unit,
     viewModel: TransactionViewModel
 ) {
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    
     val Primary = MaterialTheme.colorScheme.primary
     val OnPrimary = MaterialTheme.colorScheme.onPrimary
-    val Secondary = MaterialTheme.colorScheme.secondary
-    val OnSecondary = MaterialTheme.colorScheme.onSecondary
-    val Tertiary = MaterialTheme.colorScheme.tertiary
     val OnSurface = MaterialTheme.colorScheme.onSurface
     val OnSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
-    val SurfaceDark = MaterialTheme.colorScheme.background
-
-    var activeSubPopup by remember { mutableStateOf<String?>(null) } // "ID", "THEME", "CLOUD", "LOCAL"
-
     val brandConfig by viewModel.brandConfig.collectAsState()
-    val isCloudEnabled by viewModel.isCloudBackupEnabled.collectAsState()
-    val syncState by viewModel.syncState.collectAsState()
-    val userEmail = viewModel.sessionManager.userEmail
+
+    val iconsMap = mapOf(
+        "CROWN" to Icons.Default.Star,
+        "BAG" to Icons.Default.ShoppingCart,
+        "HEART" to Icons.Default.Favorite,
+        "BUILD" to Icons.Default.Build,
+        "PERSON" to Icons.Default.Person
+    )
+
+    // Activity launcher for database export
+    val exportDatabaseLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    val success = viewModel.exportDatabaseToStream(outputStream)
+                    if (success) {
+                        Toast.makeText(context, "Backup local (.db) exportado!", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Falha ao exportar backup.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Erro: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    // Activity launcher for database import
+    val importDatabaseLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val success = viewModel.importDatabaseFromStream(inputStream)
+                    if (success) {
+                        Toast.makeText(context, "Banco de dados importado!", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Falha ao processar arquivo de banco de dados.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Erro: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -79,16 +106,17 @@ fun ProfileSettingsPopup(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Header Profile Info
+                // Header Row
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "GERENCIAR PERFIL & AJUSTES",
+                        text = "GERENCIAR EXPEDIENTE LOCAL",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = Primary,
@@ -98,1195 +126,156 @@ fun ProfileSettingsPopup(
                         onClick = onDismiss,
                         modifier = Modifier.size(24.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Fechar UI", tint = OnSurfaceVariant)
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Fechar",
+                            tint = OnSurfaceVariant
+                        )
                     }
                 }
 
-                // Brand Visual Identity
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .background(Primary.copy(alpha = 0.15f), CircleShape)
-                        .border(1.5.dp, Primary, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val decodedLogo = rememberBitmapFromBase64(brandConfig?.logoImage)
-                    if (decodedLogo != null) {
-                        androidx.compose.foundation.Image(
-                            bitmap = decodedLogo,
-                            contentDescription = "Logo",
-                            modifier = Modifier.size(80.dp).clip(CircleShape)
-                        )
-                    } else {
-                        val iconsMap = mapOf(
-                            "CROWN" to Icons.Default.Star,
-                            "BAG" to Icons.Default.ShoppingCart,
-                            "HEART" to Icons.Default.Favorite,
-                            "BUILD" to Icons.Default.Build,
-                            "PERSON" to Icons.Default.Person
-                        )
-                        val iconVec = iconsMap[brandConfig?.logoIcon ?: "CROWN"] ?: Icons.Default.Star
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
+                // Brand details
+                brandConfig?.let { config ->
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(12.dp))
+                            .padding(16.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(Primary.copy(alpha = 0.15f), CircleShape)
+                                .border(1.5.dp, Primary, CircleShape),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = iconVec,
-                                contentDescription = null,
-                                tint = Primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Text(
-                                text = (brandConfig?.logoText ?: "GP").uppercase().take(3),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = OnSurface
-                            )
+                            val decodedLogo = rememberBitmapFromBase64(config.logoImage)
+                            if (decodedLogo != null) {
+                                androidx.compose.foundation.Image(
+                                    bitmap = decodedLogo,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp).clip(CircleShape)
+                                )
+                            } else {
+                                val selectedIcon = iconsMap[config.logoIcon] ?: Icons.Default.Star
+                                Icon(
+                                    imageVector = selectedIcon,
+                                    contentDescription = null,
+                                    tint = Primary,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
                         }
+
+                        Text(
+                            text = config.brandName,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = OnSurface,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Text(
+                            text = "${config.category} • ${config.niche.ifBlank { "Sem Nicho" }}",
+                            fontSize = 12.sp,
+                            color = OnSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
                     }
+                } ?: run {
+                    Text(
+                        text = "Nenhuma marca configurada",
+                        fontSize = 14.sp,
+                        color = OnSurfaceVariant
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text(
-                    text = brandConfig?.brandName ?: "Gestor de Produção",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = OnSurface,
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    text = userEmail ?: "Modo P2P Offline",
-                    fontSize = 11.sp,
-                    color = OnSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
-                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Menu items as interactive cells that open custom sub-popups
-                SettingsMenuRow(
-                    title = "Identidade da Marca",
-                    subtitle = "Nome, logotipo, nicho de atuação",
-                    iconVec = Icons.Default.Edit,
-                    onClick = { activeSubPopup = "ID" },
-                    primaryColor = Primary
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                SettingsMenuRow(
-                    title = "Personalização & Escala",
-                    subtitle = "Esquema de cores, tamanho de fonte, tema escuro",
-                    iconVec = Icons.Default.Settings,
-                    onClick = { activeSubPopup = "THEME" },
-                    primaryColor = Primary
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                SettingsMenuRow(
-                    title = "Backup em Nuvem Google Drive",
-                    subtitle = "Configurar conta e sincronização automática",
-                    iconVec = Icons.Default.Lock,
-                    onClick = { activeSubPopup = "CLOUD" },
-                    primaryColor = Primary
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                SettingsMenuRow(
-                    title = "Espelhamento PC / Web (P2P)",
-                    subtitle = "Sincronizar em tempo real com laptop/desktop via MQTT",
-                    iconVec = Icons.Default.Send,
-                    onClick = { activeSubPopup = "P2P" },
-                    primaryColor = Primary
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                SettingsMenuRow(
-                    title = "Grupo de Sincronização Ao Vivo",
-                    subtitle = "Trabalhar em tempo real com outras pessoas no mesmo banco",
-                    iconVec = Icons.Default.Group,
-                    onClick = { activeSubPopup = "LIVESYNC" },
-                    primaryColor = Primary
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                SettingsMenuRow(
-                    title = "Importação e Exportação Local",
-                    subtitle = "Exportar ou restaurar banco SQLite em arquivo",
-                    iconVec = Icons.Default.Share,
-                    onClick = { activeSubPopup = "LOCAL" },
-                    primaryColor = Primary
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                SettingsMenuRow(
-                    title = "Buscar Atualizações",
-                    subtitle = "Verificar se há nova versão disponivel",
-                    iconVec = Icons.Default.Refresh,
-                    onClick = { 
-                        Toast.makeText(context, "Verificando se há atualizações...", Toast.LENGTH_SHORT).show()
-                        coroutineScope.launch {
-                            kotlinx.coroutines.delay(1500)
-                            Toast.makeText(context, "O aplicativo já está na versão mais recente (v1.0.0)", Toast.LENGTH_LONG).show()
-                        }
-                    },
-                    primaryColor = Primary
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
+                // Status info
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Primary.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    androidx.compose.material3.OutlinedButton(
-                        onClick = {
-                            viewModel.clearAllDataAndReseed()
-                            Toast.makeText(context, "Banco local limpo e reinicializado!", Toast.LENGTH_SHORT).show()
-                            onDismiss()
-                        },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFFB4AB)),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Color(0xFFFFB4AB).copy(alpha = 0.4f)),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Resetar Banco", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-
-                    Button(
-                        onClick = {
-                            viewModel.logoutUser()
-                            onDismiss()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB4AB).copy(alpha = 0.2f), contentColor = Color(0xFFFFB4AB)),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(imageVector = Icons.Default.ExitToApp, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Sair da Conta", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
-
-    // ----------------------------------------------------
-    // SUB-POPUP 1: IDENTIDADE DA MARCA
-    // ----------------------------------------------------
-    if (activeSubPopup == "ID") {
-        var brandNameInput by remember(brandConfig) { mutableStateOf(brandConfig?.brandName ?: "") }
-        var categoryInput by remember(brandConfig) { mutableStateOf(brandConfig?.category ?: "Moda Íntima") }
-        var nicheInput by remember(brandConfig) { mutableStateOf(brandConfig?.niche ?: "") }
-        var logoIconInput by remember(brandConfig) { mutableStateOf(brandConfig?.logoIcon ?: "CROWN") }
-        var logoTextInput by remember(brandConfig) { mutableStateOf(brandConfig?.logoText ?: "") }
-        var logoImageInput by remember(brandConfig) { mutableStateOf<String?>(brandConfig?.logoImage) }
-
-        val cameraLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.TakePicturePreview()
-        ) { bitmap: android.graphics.Bitmap? ->
-            if (bitmap != null) {
-                try {
-                    val maxDimen = 300
-                    val scale = java.lang.Math.min(maxDimen.toFloat()/bitmap.width, maxDimen.toFloat()/bitmap.height)
-                    val resizedBitmap = if (scale < 1.0f) {
-                        android.graphics.Bitmap.createScaledBitmap(
-                            bitmap, 
-                            (bitmap.width * scale).toInt(), 
-                            (bitmap.height * scale).toInt(), 
-                            true
-                        )
-                    } else bitmap
-
-                    val outputStream = java.io.ByteArrayOutputStream()
-                    resizedBitmap.compress(android.graphics.Bitmap.CompressFormat.WEBP, 80, outputStream)
-                    val bytes = outputStream.toByteArray()
-                    
-                    val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-                    logoImageInput = "data:image/webp;base64,$base64"
-                    Toast.makeText(context, "Foto de Logotipo Tirada!", Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    Toast.makeText(context, "Erro ao processar imagem", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        val cameraPermissionLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestPermission()
-        ) { isGranted: Boolean ->
-            if (isGranted) {
-                cameraLauncher.launch(null)
-            } else {
-                Toast.makeText(context, "Permissão de câmera negada", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        val imageLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.GetContent()
-        ) { uri: Uri? ->
-            uri?.let {
-                try {
-                    val inputStream = context.contentResolver.openInputStream(it)
-                    val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
-                    inputStream?.close()
-                    
-                    if (bitmap != null) {
-                        // Resize to max 300x300 for avatar (saves memory & MQTT payload size)
-                        val maxDimen = 300
-                        val scale = java.lang.Math.min(maxDimen.toFloat()/bitmap.width, maxDimen.toFloat()/bitmap.height)
-                        val resizedBitmap = if (scale < 1.0f) {
-                            android.graphics.Bitmap.createScaledBitmap(
-                                bitmap, 
-                                (bitmap.width * scale).toInt(), 
-                                (bitmap.height * scale).toInt(), 
-                                true
-                            )
-                        } else bitmap
-
-                        val outputStream = java.io.ByteArrayOutputStream()
-                        resizedBitmap.compress(android.graphics.Bitmap.CompressFormat.WEBP, 80, outputStream)
-                        val bytes = outputStream.toByteArray()
-                        
-                        val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-                        logoImageInput = "data:image/webp;base64,$base64"
-                        Toast.makeText(context, "Imagem de Logotipo Carregada!", Toast.LENGTH_SHORT).show()
-                    }
-                } catch (e: Exception) {
-                    Toast.makeText(context, "Erro ao carregar: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-                }
-            }
-        }
-
-        AlertDialog(
-            onDismissRequest = { activeSubPopup = null },
-            properties = DialogProperties(usePlatformDefaultWidth = false),
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            title = {
-                Text("Identidade da Marca", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = OnSurface)
-            },
-            text = {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    item {
-                        Text("Nome do Negócio", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = OnSurface)
-                        OutlinedTextField(
-                            value = brandNameInput,
-                            onValueChange = { brandNameInput = it },
-                            placeholder = { Text("Ex: Confecção Real") },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    item {
-                        Text("Nicho / Foco principal", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = OnSurface)
-                        OutlinedTextField(
-                            value = nicheInput,
-                            onValueChange = { nicheInput = it },
-                            placeholder = { Text("Ex: Lingerie Fina, Fitness Atacado") },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    item {
-                        Text("Logotipo", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = OnSurface)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .background(Primary.copy(alpha = 0.1f), CircleShape)
-                                    .border(1.dp, Primary, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                val loadedBmp = rememberBitmapFromBase64(logoImageInput)
-                                if (loadedBmp != null) {
-                                    androidx.compose.foundation.Image(
-                                        bitmap = loadedBmp,
-                                        contentDescription = "Logo",
-                                        modifier = Modifier.size(56.dp).clip(CircleShape)
-                                    )
-                                } else {
-                                    Icon(imageVector = Icons.Default.Star, contentDescription = null, tint = Primary)
-                                }
-                            }
-
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Button(
-                                        onClick = { imageLauncher.launch("image/*") },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Icon(imageVector = Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Galeria", fontSize = 11.sp)
-                                    }
-                                    
-                                    Button(
-                                        onClick = { cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Primary.copy(alpha=0.8f)),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Icon(imageVector = androidx.compose.material.icons.Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Câmera", fontSize = 11.sp)
-                                    }
-                                }
-                                if (logoImageInput != null) {
-                                    Text(
-                                        text = "Remover",
-                                        fontSize = 11.sp,
-                                        color = Color(0xFFFFB4AB),
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.clickable { logoImageInput = null }
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    if (logoImageInput.isNullOrBlank()) {
-                        item {
-                            Text("Letras de Backup (Sigla de 3 letras)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = OnSurface)
-                            OutlinedTextField(
-                                value = logoTextInput,
-                                onValueChange = { logoTextInput = it.take(3) },
-                                placeholder = { Text("Ex: ATR") },
-                                singleLine = true,
-                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary),
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (brandNameInput.isBlank()) {
-                            Toast.makeText(context, "Nome é obrigatório!", Toast.LENGTH_SHORT).show()
-                        } else {
-                            viewModel.saveBrandConfig(
-                                brandName = brandNameInput,
-                                category = categoryInput,
-                                niche = nicheInput,
-                                colorScheme = brandConfig?.colorScheme ?: "PINK",
-                                logoText = if (logoTextInput.isNotBlank()) logoTextInput else brandNameInput.take(3),
-                                logoIcon = logoIconInput,
-                                logoImage = logoImageInput
-                            )
-                            Toast.makeText(context, "Identidade atualizada com sucesso!", Toast.LENGTH_SHORT).show()
-                            activeSubPopup = null
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = OnPrimary),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Salvar", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { activeSubPopup = null }) {
-                    Text("Cancelar", color = OnSurfaceVariant)
-                }
-            }
-        )
-    }
-
-    // ----------------------------------------------------
-    // SUB-POPUP 2: PERSONALIZAÇÃO & CORES
-    // ----------------------------------------------------
-    if (activeSubPopup == "THEME") {
-        val appNameState by viewModel.appName.collectAsState()
-        val colorSchemeName by viewModel.colorSchemeName.collectAsState()
-        val isDarkMode by viewModel.isDarkMode.collectAsState()
-        val fontSizeScale by viewModel.fontSizeScale.collectAsState()
-        var tempAppName by remember(appNameState) { mutableStateOf(appNameState) }
-
-        val schemeOptions = listOf(
-            "PINK" to "Rosa Clássico (Orquídea)",
-            "EMERALD" to "Esmeralda Vibrante (Estúdio)",
-            "PURPLE" to "Ametista Imperial (Crochê)",
-            "BLUE" to "Safira Oceano (Confecção)"
-        )
-
-        AlertDialog(
-            onDismissRequest = { activeSubPopup = null },
-            properties = DialogProperties(usePlatformDefaultWidth = false),
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            title = {
-                Text("Personalização e Tema", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = OnSurface)
-            },
-            text = {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    item {
-                        Text("Nome de Exibição do Aplicativo", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = OnSurface)
-                        OutlinedTextField(
-                            value = tempAppName,
-                            onValueChange = { tempAppName = it },
-                            placeholder = { Text("Ex: Gestor de Produção") },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    item {
-                        Text("Tema do Dispositivo", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = OnSurface)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Modo Escuro / Noturno", fontSize = 13.sp, color = OnSurface)
-                            Switch(
-                                checked = isDarkMode,
-                                onCheckedChange = { viewModel.updateDarkMode(it) },
-                                colors = SwitchDefaults.colors(checkedThumbColor = Primary)
-                            )
-                        }
-                    }
-
-                    item {
-                        Text("Esquema de Cores Ativo", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = OnSurface)
-                        Spacer(modifier = Modifier.height(6.dp))
-                        schemeOptions.forEach { (schemeId, label) ->
-                            val selected = colorSchemeName == schemeId
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (selected) Primary.copy(alpha = 0.15f) else Color.Transparent)
-                                    .clickable {
-                                        viewModel.updateColorScheme(schemeId)
-                                        // Update the brandConfig db to sync color scheme
-                                        brandConfig?.let {
-                                            viewModel.saveBrandConfig(
-                                                brandName = it.brandName,
-                                                category = it.category,
-                                                niche = it.niche,
-                                                colorScheme = schemeId,
-                                                logoText = it.logoText,
-                                                logoIcon = it.logoIcon,
-                                                logoImage = it.logoImage
-                                            )
-                                        }
-                                    }
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                gap = 12.dp,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .background(
-                                            when(schemeId) {
-                                                "PINK" -> Color(0xFFF472B6)
-                                                "EMERALD" -> Color(0xFF10B981)
-                                                "PURPLE" -> Color(0xFF8B5CF6)
-                                                else -> Color(0xFF3B82F6)
-                                            },
-                                            CircleShape
-                                        )
-                                )
-                                Text(
-                                    text = label,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                    color = OnSurface
-                                )
-                            }
-                        }
-                    }
-
-                    item {
-                        Text("Escala de Tamanho da Fonte: ${(fontSizeScale * 100).toInt()}%", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = OnSurface)
-                        Slider(
-                            value = fontSizeScale,
-                            onValueChange = { viewModel.updateFontSizeScale(it) },
-                            valueRange = 0.85f..1.25f,
-                            colors = SliderDefaults.colors(thumbColor = Primary, activeTrackColor = Primary)
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (tempAppName.isNotBlank()) {
-                            viewModel.updateAppName(tempAppName)
-                            Toast.makeText(context, "Nome e layout atualizados!", Toast.LENGTH_SHORT).show()
-                        }
-                        activeSubPopup = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = OnPrimary),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Salvar", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { activeSubPopup = null }) {
-                    Text("Fechar", color = OnSurfaceVariant)
-                }
-            }
-        )
-    }
-
-    // ----------------------------------------------------
-    // SUB-POPUP 3: BACKUP EM NUVEM (GOOGLE DRIVE)
-    // ----------------------------------------------------
-    if (activeSubPopup == "CLOUD") {
-        val googleSignInLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.StartActivityForResult()
-        ) { result ->
-            if (result.resultCode == android.app.Activity.RESULT_OK) {
-                val task = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                try {
-                    val account = task.getResult(com.google.android.gms.common.api.ApiException::class.java)
-                    viewModel.sessionManager.userEmail = account?.email ?: "Usuário Google"
-                    Toast.makeText(context, "Autenticado como ${account?.email}", Toast.LENGTH_SHORT).show()
-                    viewModel.setCloudBackupEnabled(true)
-                } catch (e: com.google.android.gms.common.api.ApiException) {
-                    Toast.makeText(context, "Falha na autenticação", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        AlertDialog(
-            onDismissRequest = { activeSubPopup = null },
-            properties = DialogProperties(usePlatformDefaultWidth = false),
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            title = {
-                Text("Backup em Nuvem (Google Drive)", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = OnSurface)
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth().heightIn(max=400.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Text(
-                        text = "Ative a sincronização para salvar um backup completo de suas transações, tabelas de medidas, fichas técnicas e clientes de forma invisível e automatizada na sua conta do Google Drive.",
-                        fontSize = 12.sp,
-                        color = OnSurfaceVariant,
-                        lineHeight = 16.sp
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "Criptografado",
+                        tint = Primary,
+                        modifier = Modifier.size(20.dp)
                     )
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.05f))
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text("Sincronização Ativa", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = OnSurface)
-                            Text("Sincronizar dados automaticamente", fontSize = 11.sp, color = OnSurfaceVariant)
-                        }
-                        Switch(
-                            checked = isCloudEnabled,
-                            onCheckedChange = { viewModel.setCloudBackupEnabled(it) },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Primary)
+                    Column {
+                        Text(
+                            text = "Segurança Máxima Local",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = OnSurface
+                        )
+                        Text(
+                            text = "Seus registros são guardados exclusivamente no seu celular de forma offline.",
+                            fontSize = 11.sp,
+                            color = OnSurfaceVariant,
+                            lineHeight = 14.sp
                         )
                     }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(10.dp))
-                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
-                            .padding(12.dp)
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                "Status de Sincronização:",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = OnSurface
-                            )
-                            Text(
-                                text = when {
-                                    !isCloudEnabled -> "📴 Backup Desativado / Operando Local"
-                                    viewModel.sessionManager.userEmail == null -> "⚠ Autenticação Google Pendente"
-                                    syncState == "SYNCED" -> "✓ Totalmente Sincronizado"
-                                    syncState == "SYNCING" -> "⌛ Enviando Backup para o Drive..."
-                                    else -> "⚠ Falha ao autenticar com Play Services"
-                                },
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = when {
-                                    !isCloudEnabled -> OnSurfaceVariant
-                                    viewModel.sessionManager.userEmail == null -> Color(0xFFFFB4AB)
-                                    syncState == "SYNCED" -> Color(0xFF10B981)
-                                    syncState == "SYNCING" -> Secondary
-                                    else -> Color(0xFFFFB4AB)
-                                }
-                            )
-                        }
-                    }
-
-                    if (viewModel.sessionManager.userEmail.isNullOrEmpty()) {
-                        Button(
-                            onClick = {
-                                val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN)
-                                    .requestEmail()
-                                    .build()
-                                val client = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(context, gso)
-                                googleSignInLauncher.launch(client.signInIntent)
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = OnPrimary),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Entrar com Conta Google", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        }
-                    } else {
-                        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Conectado como: ${viewModel.sessionManager.userEmail}", fontSize = 12.sp, color = Primary, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Button(
-                                onClick = {
-                                    viewModel.triggerSyncSimulation()
-                                    Toast.makeText(context, "Sincronizando...", Toast.LENGTH_SHORT).show()
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = OnPrimary),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Sincronizar Agora com o Drive", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            }
-                        }
-                    }
                 }
-            },
-            confirmButton = {
-                Button(
-                    onClick = { activeSubPopup = null },
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("OK")
-                }
-            }
-        )
-    }
 
-    // ----------------------------------------------------
-    // SUB-POPUP 4: IMPORTAÇÃO & EXPORTAÇÃO LOCAL SQLite
-    // ----------------------------------------------------
-    if (activeSubPopup == "LOCAL") {
-        val exportDatabaseLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.CreateDocument("application/octet-stream")
-        ) { uri: Uri? ->
-            if (uri != null) {
-                try {
-                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                        val success = viewModel.exportDatabaseToStream(outputStream)
-                        if (success) {
-                            Toast.makeText(context, "Banco exportado com sucesso!", Toast.LENGTH_LONG).show()
-                        } else {
-                            Toast.makeText(context, "Falha ao exportar.", Toast.LENGTH_LONG).show()
-                        }
-                    }
-                } catch (e: Exception) {
-                    Toast.makeText(context, "Erro: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-                }
-            }
-        }
-
-        val importDatabaseLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.GetContent()
-        ) { uri: Uri? ->
-            if (uri != null) {
-                try {
-                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        val success = viewModel.importDatabaseFromStream(inputStream)
-                        if (success) {
-                            Toast.makeText(context, "Banco restaurado! Reiniciando...", Toast.LENGTH_LONG).show()
-                        } else {
-                            Toast.makeText(context, "Falha ao importar o arquivo sqlite.", Toast.LENGTH_LONG).show()
-                        }
-                    }
-                } catch (e: Exception) {
-                    Toast.makeText(context, "Erro: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-                }
-            }
-        }
-
-        AlertDialog(
-            onDismissRequest = { activeSubPopup = null },
-            properties = DialogProperties(usePlatformDefaultWidth = false),
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            title = {
-                Text("Importação & Exportação Local", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = OnSurface)
-            },
-            text = {
+                // Actions Card
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = "Você pode fazer cópias de backup locais de seus dados exportando o banco de dados SQLite para o cartão SD/memórias ou importando relatórios e cópias antigas.",
-                        fontSize = 12.sp,
-                        color = OnSurfaceVariant,
-                        lineHeight = 16.sp
-                    )
-
                     Button(
-                        onClick = { exportDatabaseLauncher.launch("gestor_producao_backup_${System.currentTimeMillis()}.db") },
+                        onClick = {
+                            try {
+                                exportDatabaseLauncher.launch("ms_modaintima_database.db")
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Erro ao exportar", Toast.LENGTH_SHORT).show()
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = OnPrimary),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Exportar Banco de Dados", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Icon(imageVector = Icons.Default.Backup, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Exportar Cópia de Segurança (.db)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
 
-                    androidx.compose.material3.OutlinedButton(
-                        onClick = { importDatabaseLauncher.launch("*/*") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Primary)
-                    ) {
-                        Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Importar Banco de Dados", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Primary)
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = { activeSubPopup = null },
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Voltar")
-                }
-            }
-        )
-    }
-
-    // ----------------------------------------------------
-    // SUB-POPUP X: ESPELHAMENTO PC/WEB (P2P)
-    // ----------------------------------------------------
-    if (activeSubPopup == "P2P") {
-        var pinCode by remember { mutableStateOf("") }
-        var isSyncing by remember { mutableStateOf(false) }
-        val coroutineScope = rememberCoroutineScope()
-        val txs by viewModel.allTransactions.collectAsState()
-        val cats by viewModel.allCategories.collectAsState()
-        val orders by viewModel.allOrders.collectAsState()
-        val calcs by viewModel.allCalculations.collectAsState()
-        
-        AlertDialog(
-            onDismissRequest = { activeSubPopup = null },
-            properties = DialogProperties(usePlatformDefaultWidth = false),
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            title = {
-                Text("Espelhamento PC / Web", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = OnSurface)
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Text(
-                        text = "Acesse o site da versão desktop pelo computador e digite o Código de 6 dígitos gerado na tela abaixo para espelhar ou conectar seus dados em tempo real.\n\nTodo o seu banco de dados e layout serão sincronizados remotamente.",
-                        fontSize = 12.sp,
-                        color = OnSurfaceVariant,
-                        lineHeight = 16.sp
-                    )
-                    
-                    val scanner = remember {
-                        val options = com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions.Builder()
-                            .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_QR_CODE)
-                            .enableAutoZoom()
-                            .build()
-                        com.google.mlkit.vision.codescanner.GmsBarcodeScanning.getClient(context, options)
-                    }
-
-                    OutlinedTextField(
-                        value = pinCode,
-                        onValueChange = { if (it.length <= 6) pinCode = it },
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                        placeholder = { Text("Código de 6 dígitos") },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
-                            focusedTextColor = OnSurface,
-                            unfocusedTextColor = OnSurface
-                        ),
-                        trailingIcon = {
-                            IconButton(onClick = {
-                                try {
-                                    scanner.startScan()
-                                        .addOnSuccessListener { barcode ->
-                                            barcode.rawValue?.let { scannedText ->
-                                                val regex = Regex("\\b\\d{6}\\b")
-                                                val match = regex.find(scannedText)
-                                                if (match != null) {
-                                                    val pin = match.value
-                                                    pinCode = pin
-                                                    Toast.makeText(context, "Conectando ao código: $pin", Toast.LENGTH_SHORT).show()
-                                                    
-                                                    // Auto-trigger sync once successfully scanned
-                                                    if (!isSyncing) {
-                                                        isSyncing = true
-                                                        coroutineScope.launch {
-                                                            val success = com.example.data.MqttSyncManager.syncWithWeb(
-                                                                pinCode = pin,
-                                                                context = context,
-                                                                transactions = txs,
-                                                                categories = cats,
-                                                                orders = orders,
-                                                                calculations = calcs,
-                                                                brandConfig = brandConfig?.let { config ->
-                                                                    org.json.JSONObject().apply {
-                                                                        put("brandName", config.brandName)
-                                                                        put("category", config.category)
-                                                                        put("niche", config.niche)
-                                                                        put("colorScheme", config.colorScheme)
-                                                                        put("logoIcon", config.logoIcon)
-                                                                        put("logoText", config.logoText)
-                                                                        put("logoImage", config.logoImage)
-                                                                        put("isConfigured", config.isConfigured)
-                                                                    }
-                                                                }
-                                                            )
-                                                            withContext(Dispatchers.Main) {
-                                                                isSyncing = false
-                                                                pinCode = ""
-                                                                Toast.makeText(context, if (success) "Dados espelhados com sucesso via QR!" else "Erro na sincronização, tente novamente.", Toast.LENGTH_SHORT).show()
-                                                                if (success) activeSubPopup = null
-                                                            }
-                                                        }
-                                                    }
-                                                } else {
-                                                    Toast.makeText(context, "Código de 6 dígitos não encontrado no QR Code.", Toast.LENGTH_LONG).show()
-                                                }
-                                            } ?: run {
-                                                Toast.makeText(context, "QR Code vazio.", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                        .addOnFailureListener { e ->
-                                            Toast.makeText(context, "Leitura cancelada ou falhou.", Toast.LENGTH_SHORT).show()
-                                        }
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Erro ao iniciar scanner: ${e.message}", Toast.LENGTH_LONG).show()
-                                }
-                            }) {
-                                Icon(imageVector = Icons.Default.QrCodeScanner, contentDescription = "Escanear QR Code", tint = Primary)
-                            }
-                        },
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    
-                    Spacer(modifier = Modifier.height(10.dp))
-                    
-                    Button(
+                    OutlinedButton(
                         onClick = {
-                            if (pinCode.length == 6 && !isSyncing) {
-                                isSyncing = true
-                                coroutineScope.launch {
-                                    val success = com.example.data.MqttSyncManager.syncWithWeb(
-                                        pinCode = pinCode,
-                                        context = context,
-                                        transactions = txs,
-                                        categories = cats,
-                                        orders = orders,
-                                        calculations = calcs,
-                                        brandConfig = brandConfig?.let { config ->
-                                            org.json.JSONObject().apply {
-                                                put("brandName", config.brandName)
-                                                put("category", config.category)
-                                                put("niche", config.niche)
-                                                put("colorScheme", config.colorScheme)
-                                                put("logoIcon", config.logoIcon)
-                                                put("logoText", config.logoText)
-                                                put("logoImage", config.logoImage)
-                                                put("isConfigured", config.isConfigured)
-                                            }
-                                        }
-                                    )
-                                    withContext(Dispatchers.Main) {
-                                        isSyncing = false
-                                        pinCode = "" // Clear after sync
-                                        Toast.makeText(context, if(success) "Dados espelhados com sucesso!" else "Erro ao parear, tente novamente.", Toast.LENGTH_SHORT).show()
-                                        if (success) activeSubPopup = null
-                                    }
-                                }
-                            } else if (pinCode.length != 6) {
-                                Toast.makeText(context, "Digite os 6 dígitos mostrados no navegador web.", Toast.LENGTH_SHORT).show()
+                            try {
+                                importDatabaseLauncher.launch("*/*")
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Erro ao importar", Toast.LENGTH_SHORT).show()
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = OnPrimary),
+                        border = BorderStroke(1.dp, Primary.copy(alpha = 0.3f)),
                         shape = RoundedCornerShape(8.dp),
-                        enabled = !isSyncing
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary)
                     ) {
-                        if (isSyncing) {
-                            CircularProgressIndicator(color = OnPrimary, modifier = Modifier.size(16.dp))
-                        } else {
-                            Icon(imageVector = Icons.Default.Send, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Iniciar Pareamento", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
+                        Icon(imageVector = Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Importar / Restaurar Banco de Dados", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    TextButton(
+                        onClick = {
+                            viewModel.setTab(AppTab.SETTINGS)
+                            onDismiss()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(imageVector = Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Ajustes Avançados de Identidade", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { activeSubPopup = null }) {
-                    Text("Voltar", color = OnSurfaceVariant)
-                }
             }
-        )
-    }
-
-    if (activeSubPopup == "LIVESYNC") {
-        var groupInput by remember { mutableStateOf("") }
-        val currentGroupCode = com.example.data.LiveSyncManager.activeGroupCode
-        
-        AlertDialog(
-            onDismissRequest = { activeSubPopup = null },
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .wrapContentHeight(),
-            containerColor = MaterialTheme.colorScheme.surface,
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = Icons.Default.Group, contentDescription = null, tint = Primary)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Sincronização Ao Vivo", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = OnSurface)
-                }
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "Trabalhe no mesmo banco de dados com seus parceiros! Qualquer lançamento, pedido ou alteração feita por você ou eles será atualizada instantaneamente nas duas telas.",
-                        fontSize = 12.sp,
-                        color = OnSurfaceVariant,
-                        lineHeight = 16.sp
-                    )
-                    
-                    if (currentGroupCode != null) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Primary.copy(alpha = 0.08f)),
-                            border = BorderStroke(1.dp, Primary.copy(alpha = 0.24f)),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text("CONECTADO AO GRUPO", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Primary, letterSpacing = 1.sp)
-                                
-                                Text(
-                                    text = currentGroupCode,
-                                    fontSize = 28.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Primary,
-                                    letterSpacing = 2.sp
-                                )
-                                
-                                Text(
-                                    text = "Compartilhe este código acima com outros membros para que eles se conectem ao mesmo banco.",
-                                    fontSize = 11.sp,
-                                    color = OnSurfaceVariant,
-                                    textAlign = TextAlign.Center,
-                                    lineHeight = 14.sp
-                                )
-                                
-                                Spacer(modifier = Modifier.height(4.dp))
-                                
-                                Button(
-                                    onClick = {
-                                        viewModel.stopLiveSync()
-                                        Toast.makeText(context, "Sincronização ao vivo desativada.", Toast.LENGTH_SHORT).show()
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F), contentColor = Color.White),
-                                    shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier.fillMaxWidth().height(40.dp)
-                                ) {
-                                    Icon(imageVector = Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Sair do Grupo", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                        }
-                    } else {
-                        Button(
-                            onClick = {
-                                val allowedChars = ('A'..'Z') + ('0'..'9')
-                                val randomSuffix = (1..6).map { allowedChars.random() }.joinToString("")
-                                val newCode = "GP-$randomSuffix"
-                                
-                                viewModel.startLiveSync(newCode)
-                                Toast.makeText(context, "Novo grupo criado com sucesso: $newCode", Toast.LENGTH_SHORT).show()
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = OnPrimary),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.fillMaxWidth().height(44.dp)
-                        ) {
-                            Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Criar Novo Grupo de Trabalho", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                        
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                        ) {
-                            HorizontalDivider(modifier = Modifier.weight(1f), color = OnSurfaceVariant.copy(alpha = 0.2f))
-                            Text("OU", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = OnSurfaceVariant.copy(alpha = 0.6f), modifier = Modifier.padding(horizontal = 8.dp))
-                            HorizontalDivider(modifier = Modifier.weight(1f), color = OnSurfaceVariant.copy(alpha = 0.2f))
-                        }
-                        
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Se conectar a um grupo existente:", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = OnSurface)
-                            
-                            OutlinedTextField(
-                                value = groupInput,
-                                onValueChange = { groupInput = it.uppercase() },
-                                placeholder = { Text("Ex: GP-T9Y4M3", color = OnSurfaceVariant.copy(alpha = 0.4f)) },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = Primary,
-                                    unfocusedBorderColor = OnSurfaceVariant.copy(alpha = 0.24f),
-                                    unfocusedContainerColor = Color.Transparent,
-                                    focusedContainerColor = Color.Transparent,
-                                    focusedTextColor = OnSurface,
-                                    unfocusedTextColor = OnSurface
-                                )
-                            )
-                            
-                            Button(
-                                onClick = {
-                                    val formatted = groupInput.trim()
-                                    if (formatted.isNotEmpty() && formatted.startsWith("GP-")) {
-                                        viewModel.startLiveSync(formatted)
-                                        Toast.makeText(context, "Conectado ao grupo $formatted!", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "Insira um código válido iniciando com 'GP-'.", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth().height(42.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Secondary, contentColor = OnSecondary)
-                            ) {
-                                Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Entrar no Grupo", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { activeSubPopup = null }) {
-                    Text("Voltar", color = OnSurfaceVariant)
-                }
-            }
-        )
-    }
-}
-
-@Composable
-fun SettingsMenuRow(
-    title: String,
-    subtitle: String,
-    iconVec: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-    primaryColor: Color
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White.copy(alpha = 0.04f))
-            .clickable { onClick() }
-            .padding(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .background(primaryColor.copy(alpha = 0.12f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(imageVector = iconVec, contentDescription = null, tint = primaryColor, modifier = Modifier.size(18.dp))
         }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            Text(text = subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-
-        Icon(
-            imageVector = Icons.Default.KeyboardArrowRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-        )
     }
-}
-
-// Custom Row receiver function helper
-@Composable
-fun Row(
-    modifier: Modifier = Modifier,
-    gap: androidx.compose.ui.unit.Dp,
-    verticalAlignment: Alignment.Vertical = Alignment.CenterVertically,
-    content: @Composable RowScope.() -> Unit
-) {
-    androidx.compose.foundation.layout.Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(gap),
-        verticalAlignment = verticalAlignment,
-        content = content
-    )
 }
