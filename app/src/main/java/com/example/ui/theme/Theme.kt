@@ -31,7 +31,7 @@ fun getDynamicColorScheme(schemeName: String, isDark: Boolean): ColorScheme {
                 surfaceVariant = Color(0xFF1F2E4D),
                 onSurfaceVariant = Color(0xFFCBD5E1)
             )
-            "EMERALD" -> darkColorScheme(
+            "EMERALD", "GREEN" -> darkColorScheme(
                 primary = Color(0xFF34D399),
                 onPrimary = Color(0xFF022C22),
                 secondary = Color(0xFF6EE7B7),
@@ -125,7 +125,7 @@ fun getDynamicColorScheme(schemeName: String, isDark: Boolean): ColorScheme {
                 surfaceVariant = Color(0xFFE2E8F0),
                 onSurfaceVariant = Color(0xFF475569)
             )
-            "EMERALD" -> lightColorScheme(
+            "EMERALD", "GREEN" -> lightColorScheme(
                 primary = Color(0xFF059669),
                 onPrimary = Color(0xFFFFFFFF),
                 secondary = Color(0xFF10B981),
