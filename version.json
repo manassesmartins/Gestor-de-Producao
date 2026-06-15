@@ -1,0 +1,7 @@
+{
+  "version": "1.2.63",
+  "changelog": "Build automático: Commit refactor: migrate to offline-first local mode
+
+Removed external dependencies for authentication and network synchronization to enforce a 100% offline local-only operation. Updated user session defaults and UI to prioritize local storage and direct data access.",
+  "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
+}
