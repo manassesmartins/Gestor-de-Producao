@@ -89,7 +89,6 @@ fun MsModaIntimaLoginScreen(viewModel: TransactionViewModel) {
     // Set up real Google Sign-In options with basic scopes (email and profile) which are guaranteed to succeed on any account picker
     val gso = remember {
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken("380829053008-k90gbhib038p1fh7e40ops722q4edtav.apps.googleusercontent.com")
             .requestEmail()
             .requestProfile()
             .build()
@@ -152,7 +151,6 @@ fun MsModaIntimaLoginScreen(viewModel: TransactionViewModel) {
                 } else {
                     // Request Drive file permission dynamically to give the Google app permissions on demand
                     val gsoWithDrive = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                        .requestIdToken("380829053008-k90gbhib038p1fh7e40ops722q4edtav.apps.googleusercontent.com")
                         .requestEmail()
                         .requestProfile()
                         .requestScopes(driveScope)
@@ -399,39 +397,6 @@ fun MsModaIntimaLoginScreen(viewModel: TransactionViewModel) {
                                     fontWeight = FontWeight.Bold
                                 )
                             }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    OutlinedButton(
-                        onClick = {
-                            showFallbackPicker = true
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Primary
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = Primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Entrar em Modo Local / Emergência",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
                         }
                     }
                 }

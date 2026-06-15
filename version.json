@@ -1,7 +1,0 @@
-{
-  "version": "1.3.59",
-  "changelog": "Build automático: Commit build: automate keystore decoding and versioning
-
-Implement dynamic version code generation based on system time to prevent installation collisions and enable stable debug keystore decoding from base64.",
-  "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
-}

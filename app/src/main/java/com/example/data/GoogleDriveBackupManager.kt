@@ -257,12 +257,10 @@ object GoogleDriveBackupManager {
     // Helper to request a fresh Google Drive/Profile access token for API calls
     suspend fun getGoogleAccessToken(context: Context): String? = withContext(Dispatchers.IO) {
         val account = GoogleSignIn.getLastSignedInAccount(context) ?: return@withContext null
-        val email = account.email ?: return@withContext null
         return@withContext try {
-            val systemAccount = account.account ?: android.accounts.Account(email, "com.google")
             GoogleAuthUtil.getToken(
                 context,
-                systemAccount,
+                account.account ?: return@withContext null,
                 "oauth2:https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email openid"
             )
         } catch (e: Exception) {
