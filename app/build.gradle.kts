@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -10,12 +12,31 @@ android {
   namespace = "com.example"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
+  // Ensure the stable debug.keystore is decoded from its base64 representation to preserve the exact signing signature across compilations
+  val base64KeystoreFile = file("${rootDir}/debug.keystore.base64")
+  val keystoreFile = file("${rootDir}/debug.keystore")
+  if (base64KeystoreFile.exists()) {
+    try {
+      val base64Content = base64KeystoreFile.readText().replace("\\s".toRegex(), "")
+      val decodedBytes = Base64.getDecoder().decode(base64Content)
+      if (!keystoreFile.exists() || !keystoreFile.readBytes().contentEquals(decodedBytes)) {
+        keystoreFile.writeBytes(decodedBytes)
+        println("SUCCESS: Decoded stable debug.keystore from base64 representation.")
+      }
+    } catch (e: Exception) {
+      System.err.println("ERROR: Failed to decode debug.keystore: ${e.message}")
+    }
+  }
+
   defaultConfig {
     applicationId = "com.aistudio.gestordeproducao.xqwzpt"
     minSdk = 24
     targetSdk = 36
-    versionCode = 2
-    versionName = "1.2.58"
+    // Use an epoch-minute-based versionCode so every freshly built APK automatically 
+    // increments its version code, avoiding manually-triggered package installation collisions.
+    val dynamicVersionCode = (System.currentTimeMillis() / 60000).toInt()
+    versionCode = dynamicVersionCode
+    versionName = "1.3"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

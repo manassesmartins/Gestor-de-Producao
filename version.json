@@ -1,7 +1,0 @@
-{
-  "version": "1.2.58",
-  "changelog": "Build automático: Commit feat: add emergency local login mode
-
-Introduce a fallback login option for offline access and fix token retrieval logic to ensure account stability. Update version to 1.2.",
-  "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
-}
