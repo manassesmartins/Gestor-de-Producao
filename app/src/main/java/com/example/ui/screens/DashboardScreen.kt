@@ -1,6 +1,7 @@
 package com.example.ui
 
 import com.example.ui.utils.generatePdfAndShare
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
@@ -71,14 +72,102 @@ fun DashboardScreen(
     val brandConfig by viewModel.brandConfig.collectAsStateWithLifecycle()
     val brandName = brandConfig?.brandName ?: "Gestor de Produção"
 
+    // Build list of months based on orders and transactions
+    val availableMonths = remember(orders, transactions) {
+        val currentMonthYear = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date())
+        val formatsOrders = orders.map { 
+            SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) 
+        }
+        val formatsTransactions = transactions.map {
+            SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp))
+        }
+        val set = (formatsOrders + formatsTransactions + currentMonthYear).distinct()
+        
+        // Filter out future months unless there is at least one scheduled order or transaction in them
+        val currentMonthDate = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(currentMonthYear) ?: Date()
+        val filteredSet = set.filter { m ->
+            val mDate = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m) ?: Date()
+            if (mDate.after(currentMonthDate)) {
+                val hasOrderInMonth = orders.any { 
+                    SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == m 
+                }
+                val hasTxInMonth = transactions.any { 
+                    SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == m 
+                }
+                hasOrderInMonth || hasTxInMonth
+            } else {
+                true
+            }
+        }
+
+        // Sort chronologically
+        filteredSet.sortedWith { m1, m2 ->
+            val d1 = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m1) ?: Date()
+            val d2 = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m2) ?: Date()
+            d1.compareTo(d2)
+        }
+    }
+
+    val currentMonthYear = remember { SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date()) }
+    var selectedMonthTab by remember(availableMonths) { 
+        mutableStateOf(
+            if (availableMonths.contains(currentMonthYear)) currentMonthYear else availableMonths.firstOrNull() ?: currentMonthYear
+        ) 
+    }
+
+    val filteredOrders = remember(orders, selectedMonthTab) {
+        orders.filter { 
+            SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == selectedMonthTab 
+        }
+    }
+
+    val filteredTransactions = remember(transactions, selectedMonthTab) {
+        transactions.filter {
+            SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == selectedMonthTab
+        }
+    }
+
+    val activeSummary = remember(filteredTransactions, filteredOrders) {
+        val totalIn = filteredOrders.sumOf { it.totalValue }
+        val totalOut = filteredTransactions.filter { it.type == "OUTFLOW" }.sumOf { it.amount }
+        val balance = totalIn - totalOut
+
+        val outflowTransactions = filteredTransactions.filter { it.type == "OUTFLOW" }
+        val totalOutflowSum = outflowTransactions.sumOf { it.amount }
+
+        val breakdown = mutableMapOf<String, Double>()
+        if (totalOutflowSum > 0) {
+            val grouped = outflowTransactions.groupBy { normalizeCategory(it.category) }
+            for ((cat, items) in grouped) {
+                val catSum = items.sumOf { it.amount }
+                breakdown[cat] = (catSum / totalOutflowSum) * 100.0
+            }
+        } else {
+            breakdown["Matéria-prima"] = 45.0
+            breakdown["Mão de Obra"] = 30.0
+            breakdown["Logística & Envios"] = 15.0
+            breakdown["Marketing"] = 10.0
+        }
+
+        FinancialSummary(
+            currentBalance = balance,
+            totalInflow = totalIn,
+            totalOutflow = totalOut,
+            profitPercentageVsLastMonth = 12.4,
+            categoryBreakdown = breakdown
+        )
+    }
+
+    val summary = activeSummary
+
     // Outer-level remembered computations to prevent heavy re-evaluation on scroll and during animations
-    val weeklyProfitData = remember(transactions, orders) {
+    val weeklyProfitData = remember(filteredTransactions, filteredOrders) {
         val weeksToCount = listOf("1ª Semana", "2ª Semana", "3ª Semana", "4ª Semana")
         WeeklyProfitList(weeksToCount.map { w ->
-            val weekOrders = orders.filter { it.week == w }
+            val weekOrders = filteredOrders.filter { it.week == w }
             val weekInflowOrders = weekOrders.sumOf { it.totalValue }
             
-            val weekTxs = transactions.filter { it.week == w }
+            val weekTxs = filteredTransactions.filter { it.week == w }
             val weekInflowTxs = weekTxs.filter { it.type == "INFLOW" || it.type == "Venda" }.sumOf { it.amount }
             
             val income = weekInflowOrders + weekInflowTxs
@@ -91,8 +180,8 @@ fun DashboardScreen(
     val totalOut = summary.totalOutflow
     val bal = summary.currentBalance
     val marginPct = remember(totalIn, bal) { if (totalIn > 0.0) (bal / totalIn) * 100.0 else 0.0 }
-    val totalPieces = remember(orders) { orders.sumOf { it.quantity } }
-    val avgTicket = remember(orders, totalIn) { if (orders.isNotEmpty()) totalIn / orders.size else 0.0 }
+    val totalPieces = remember(filteredOrders) { filteredOrders.sumOf { it.quantity } }
+    val avgTicket = remember(filteredOrders, totalIn) { if (filteredOrders.isNotEmpty()) totalIn / filteredOrders.size else 0.0 }
     val costPerPiece = remember(totalPieces, totalOut) { if (totalPieces > 0) totalOut / totalPieces else 0.0 }
 
     if (showReportDialog) {
@@ -208,6 +297,49 @@ fun DashboardScreen(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
+                }
+            }
+        }
+
+        // Dynamic Monthly Tabs for Dashboard filtering to avoid month-to-month data overlap
+        if (activeSubTab != "INVESTIMENTOS" && availableMonths.size > 1) {
+            ScrollableTabRow(
+                selectedTabIndex = availableMonths.indexOf(selectedMonthTab).coerceIn(0, availableMonths.size - 1),
+                containerColor = Color.Transparent,
+                contentColor = Primary,
+                edgePadding = 20.dp,
+                divider = {},
+                indicator = { tabPositions ->
+                    if (tabPositions.isNotEmpty()) {
+                        val index = availableMonths.indexOf(selectedMonthTab).coerceIn(0, availableMonths.size - 1)
+                        TabRowDefaults.SecondaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[index]),
+                            color = Primary
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).testTag("dashboard_months_tab_row")
+            ) {
+                availableMonths.forEach { m ->
+                    val isSelected = selectedMonthTab == m
+                    val parsedDate = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m) ?: Date()
+                    val monthLabel = SimpleDateFormat("MMM/yy", Locale("pt", "BR")).format(parsedDate)
+                        .replace(".", "")
+                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("pt", "BR")) else it.toString() }
+                    
+                    Tab(
+                        selected = isSelected,
+                        onClick = { selectedMonthTab = m },
+                        modifier = Modifier.testTag("dashboard_tab_$m")
+                    ) {
+                        Text(
+                            text = monthLabel,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) Primary else OnSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp)
+                        )
+                    }
                 }
             }
         }
@@ -648,7 +780,7 @@ fun DashboardScreen(
             }
             "SEMANAL" -> {
                 Box(modifier = Modifier.weight(1f)) {
-                    WeeklyReportsSection(transactions, orders, context, viewModel)
+                    WeeklyReportsSection(filteredTransactions, filteredOrders, context, viewModel)
                 }
             }
             "MENSAL" -> {
@@ -984,12 +1116,16 @@ fun MonthlyReportsSection(
     context: android.content.Context,
     viewModel: TransactionViewModel
 ) {
-    var selectedMonth by remember { mutableStateOf(4) } // Default to 4 (Maio / May)
-    var selectedYear by remember { mutableStateOf(2026) } // Default to 2026
+    val currentMonth = remember { java.util.Calendar.getInstance().get(java.util.Calendar.MONTH) }
+    val currentYearFromDevice = remember { java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) }
+    var selectedMonth by remember { mutableStateOf(currentMonth) } // Default to current month from device
+    var selectedYear by remember { mutableStateOf(currentYearFromDevice) } // Default to current year from device
     var searchQuery by remember { mutableStateOf("") }
 
     val monthNames = listOf("Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro")
-    val yearList = listOf(2026, 2025, 2024)
+    val yearList = remember(currentYearFromDevice) {
+        (currentYearFromDevice downTo 2024).toList().distinct()
+    }
 
     val calendar = remember { java.util.Calendar.getInstance() }
     val dateFormatter = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("pt", "BR")) }

@@ -492,6 +492,45 @@ class TransactionViewModel(
         }
     }
 
+    fun saveAllSettings(
+        brandName: String,
+        category: String,
+        niche: String,
+        colorScheme: String,
+        logoText: String,
+        logoIcon: String,
+        logoImage: String?,
+        isDarkMode: Boolean,
+        fontSizeScale: Float
+    ) {
+        viewModelScope.launch {
+            sessionManager.appName = brandName
+            sessionManager.colorScheme = colorScheme
+            sessionManager.isDarkMode = isDarkMode
+            sessionManager.fontSizeScale = fontSizeScale
+            
+            _appName.value = brandName
+            _colorSchemeName.value = colorScheme
+            _isDarkMode.value = isDarkMode
+            _fontSizeScale.value = fontSizeScale
+
+            val entity = com.example.data.BrandConfigEntity(
+                brandName = brandName,
+                category = category,
+                niche = niche,
+                colorScheme = colorScheme,
+                logoText = logoText,
+                logoIcon = logoIcon,
+                logoImage = logoImage,
+                isConfigured = true,
+                isDarkMode = isDarkMode,
+                fontSizeScale = fontSizeScale
+            )
+            repository.insertBrandConfig(entity)
+            triggerSyncSimulation()
+        }
+    }
+
     fun savePersonalizationConfig(
         appName: String,
         colorScheme: String,

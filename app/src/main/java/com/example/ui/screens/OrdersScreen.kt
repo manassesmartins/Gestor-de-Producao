@@ -41,6 +41,7 @@ import com.example.ui.theme.*
 import java.util.Locale
 import java.text.SimpleDateFormat
 import java.util.Date
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,8 +74,58 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
     var showDatePickerDialog by remember { mutableStateOf(false) }
     var selectedFilterDateMillis by remember { mutableStateOf<Long?>(null) }
 
-    val filteredOrders = remember(selectedOrderWeek, selectedFilterDateMillis, orders) {
-        val byWeek = if (selectedOrderWeek == "Tudo") orders else orders.filter { it.week == selectedOrderWeek }
+    val monthYearFormatter = remember { SimpleDateFormat("MM/yyyy", Locale("pt", "BR")) }
+    val availableMonths = remember(orders) {
+        val currentMonthYear = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date())
+        val formats = orders.map { 
+            SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) 
+        }
+        val set = (formats + currentMonthYear).distinct()
+        
+        // Filter out future months unless there is at least one scheduled order in them
+        val currentMonthDate = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(currentMonthYear) ?: Date()
+        val filteredSet = set.filter { m ->
+            val mDate = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m) ?: Date()
+            if (mDate.after(currentMonthDate)) {
+                orders.any { 
+                    SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == m 
+                }
+            } else {
+                true
+            }
+        }
+
+        // Sort chronologically
+        filteredSet.sortedWith { m1, m2 ->
+            val d1 = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m1) ?: Date()
+            val d2 = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m2) ?: Date()
+            d1.compareTo(d2)
+        }
+    }
+    
+    val currentMonthYear = remember { SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date()) }
+    var selectedMonthTab by remember(availableMonths) { 
+        mutableStateOf(
+            if (availableMonths.contains(currentMonthYear)) currentMonthYear else availableMonths.firstOrNull() ?: currentMonthYear
+        ) 
+    }
+
+    LaunchedEffect(selectedFilterDateMillis) {
+        selectedFilterDateMillis?.let { millis ->
+            val monthStr = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(millis))
+            if (availableMonths.contains(monthStr)) {
+                selectedMonthTab = monthStr
+            }
+        }
+    }
+
+    val filteredOrders = remember(selectedMonthTab, selectedOrderWeek, selectedFilterDateMillis, orders) {
+        // Filter by chosen month tab
+        val inSelectedMonth = orders.filter { 
+            SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == selectedMonthTab 
+        }
+        
+        val byWeek = if (selectedOrderWeek == "Tudo") inSelectedMonth else inSelectedMonth.filter { o -> o.week == selectedOrderWeek }
         if (selectedFilterDateMillis != null) {
             val cal = java.util.Calendar.getInstance()
             cal.timeInMillis = selectedFilterDateMillis!!
@@ -135,6 +186,62 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
                             tint = if (selectedFilterDateMillis != null) Primary else OnSurfaceVariant
                         )
                     }
+                }
+            }
+
+            // Dynamic Monthly Tabs
+            item {
+                if (availableMonths.size > 1) {
+                    ScrollableTabRow(
+                        selectedTabIndex = availableMonths.indexOf(selectedMonthTab).coerceIn(0, availableMonths.size - 1),
+                        containerColor = Color.Transparent,
+                        contentColor = Primary,
+                        edgePadding = 0.dp,
+                        divider = {},
+                        indicator = { tabPositions ->
+                            if (tabPositions.isNotEmpty()) {
+                                val index = availableMonths.indexOf(selectedMonthTab).coerceIn(0, availableMonths.size - 1)
+                                TabRowDefaults.SecondaryIndicator(
+                                    modifier = Modifier.tabIndicatorOffset(tabPositions[index]),
+                                    color = Primary
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("months_tab_row")
+                    ) {
+                        availableMonths.forEach { m ->
+                            val isSelected = selectedMonthTab == m
+                            val parsedDate = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m) ?: Date()
+                            val monthLabel = SimpleDateFormat("MMM/yy", Locale("pt", "BR")).format(parsedDate)
+                                .replace(".", "")
+                                .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("pt", "BR")) else it.toString() }
+                            
+                            Tab(
+                                selected = isSelected,
+                                onClick = { selectedMonthTab = m },
+                                modifier = Modifier.testTag("tab_$m")
+                            ) {
+                                Text(
+                                    text = monthLabel,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) Primary else OnSurfaceVariant,
+                                    modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    val parsedDate = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(selectedMonthTab) ?: Date()
+                    val monthLabel = SimpleDateFormat("MMMM yyyy", Locale("pt", "BR")).format(parsedDate)
+                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("pt", "BR")) else it.toString() }
+                    Text(
+                        text = "Exibindo encomendas de: $monthLabel",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = OnSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
             }
 

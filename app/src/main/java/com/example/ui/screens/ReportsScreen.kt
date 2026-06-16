@@ -432,12 +432,16 @@ fun ReportsScreen(viewModel: TransactionViewModel) {
             }
         } else {
             // MENSAL HISTORY TAB WITH SEARCH AND DATES OF LAST ALTERATION!
-            var selectedMonth by remember { mutableStateOf(4) } // Default to 4 (Maio / May)
-            var selectedYear by remember { mutableStateOf(2026) } // Default to 2026
+            val currentMonth = remember { java.util.Calendar.getInstance().get(java.util.Calendar.MONTH) }
+            var selectedMonth by remember { mutableStateOf(currentMonth) } // Default to current month from device
+            val currentYearFromDevice = remember { java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) }
+            var selectedYear by remember { mutableStateOf(currentYearFromDevice) } // Default to current year from device
             var searchQuery by remember { mutableStateOf("") }
 
             val monthNames = listOf("Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro")
-            val yearList = listOf(2026, 2025, 2024)
+            val yearList = remember(currentYearFromDevice) {
+                (currentYearFromDevice downTo 2024).toList().distinct()
+            }
 
             val calendar = remember { java.util.Calendar.getInstance() }
 

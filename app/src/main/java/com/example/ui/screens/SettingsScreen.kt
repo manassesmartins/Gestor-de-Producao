@@ -83,6 +83,55 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val brandConfig by viewModel.brandConfig.collectAsState()
 
+    val appNameState by viewModel.appName.collectAsState()
+    val colorSchemeNameState by viewModel.colorSchemeName.collectAsState()
+    val isDarkModeState by viewModel.isDarkMode.collectAsState()
+    val fontSizeScaleState by viewModel.fontSizeScale.collectAsState()
+
+    var brandNameInput by remember(brandConfig) { mutableStateOf(brandConfig?.brandName ?: "") }
+    var categoryInput by remember(brandConfig) { mutableStateOf(brandConfig?.category ?: "Moda Íntima") }
+    var nicheInput by remember(brandConfig) { mutableStateOf(brandConfig?.niche ?: "") }
+    var selectedColorInput by remember(brandConfig) { mutableStateOf(brandConfig?.colorScheme ?: "PINK") }
+    var logoIconInput by remember(brandConfig) { mutableStateOf(brandConfig?.logoIcon ?: "CROWN") }
+    var logoTextInput by remember(brandConfig) { mutableStateOf(brandConfig?.logoText ?: "") }
+    var logoImageInput by remember(brandConfig) { mutableStateOf<String?>(brandConfig?.logoImage) }
+    
+    var isDarkModeInput by remember(isDarkModeState) { mutableStateOf(isDarkModeState) }
+    var fontSizeScaleInput by remember(fontSizeScaleState) { mutableStateOf(fontSizeScaleState) }
+
+    var localHue by remember { mutableStateOf(330f) }
+    var localSat by remember { mutableStateOf(0.53f) }
+    var localVal by remember { mutableStateOf(0.95f) }
+
+    fun hsvToHexLocal(h: Float, s: Float, v: Float): String {
+        val colorInt = android.graphics.Color.HSVToColor(floatArrayOf(h, s, v))
+        return String.format("#%06X", 0xFFFFFF and colorInt).uppercase()
+    }
+
+    LaunchedEffect(selectedColorInput) {
+        val clean = selectedColorInput.trim().removePrefix("#").uppercase()
+        val currentLocalHex = hsvToHexLocal(localHue, localSat, localVal).removePrefix("#").uppercase()
+        if (clean != currentLocalHex) {
+            val result = FloatArray(3) { 0f }
+            try {
+                val colorInt = when (clean) {
+                    "PINK" -> 0xFFF472B6.toInt()
+                    "BLUE" -> 0xFF60A5FA.toInt()
+                    "GREEN" -> 0xFF34D399.toInt()
+                    "ROSE" -> 0xFFF6A6B2.toInt()
+                    "RED" -> 0xFFF87171.toInt()
+                    else -> android.graphics.Color.parseColor("#$clean")
+                }
+                android.graphics.Color.colorToHSV(colorInt, result)
+                localHue = result[0]
+                localSat = result[1]
+                localVal = result[2]
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+    }
+
     // Activity launcher for database export (Create document)
     val exportDatabaseLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/octet-stream")
@@ -312,14 +361,6 @@ fun SettingsScreen(
 
         // CONFIGURAÇÃO DA MARCA Card
         item {
-            var brandNameInput by remember(brandConfig) { mutableStateOf(brandConfig?.brandName ?: "") }
-            var categoryInput by remember(brandConfig) { mutableStateOf(brandConfig?.category ?: "Moda Íntima") }
-            var nicheInput by remember(brandConfig) { mutableStateOf(brandConfig?.niche ?: "") }
-            var selectedColorInput by remember(brandConfig) { mutableStateOf(brandConfig?.colorScheme ?: "PINK") }
-            var logoIconInput by remember(brandConfig) { mutableStateOf(brandConfig?.logoIcon ?: "CROWN") }
-            var logoTextInput by remember(brandConfig) { mutableStateOf(brandConfig?.logoText ?: "") }
-            var logoImageInput by remember(brandConfig) { mutableStateOf<String?>(brandConfig?.logoImage) }
-
             val categoryOptions = listOf("Moda Íntima", "Vestuário / Têxtil", "Moda Praia / Fitness", "Artesanato & Crochê", "Calçados & Bolsas", "Outro")
             
             val iconsMap = mapOf(
@@ -582,79 +623,11 @@ fun SettingsScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Button(
-                    onClick = {
-                        if (brandNameInput.isBlank()) {
-                            Toast.makeText(context, "O nome da marca é obrigatório!", Toast.LENGTH_SHORT).show()
-                        } else {
-                            viewModel.saveBrandConfig(
-                                brandName = brandNameInput,
-                                category = categoryInput,
-                                niche = nicheInput,
-                                colorScheme = selectedColorInput,
-                                logoText = if (logoTextInput.isNotBlank()) logoTextInput else brandNameInput.take(3),
-                                logoIcon = logoIconInput,
-                                logoImage = logoImageInput
-                            )
-                            Toast.makeText(context, "Identidade da marca atualizada com sucesso!", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Primary,
-                        contentColor = OnPrimary
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Salvar Configurações da Marca", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                }
             }
         }
 
         // PERSONALIZAÇÃO & ACESSIBILIDADE Card
         item {
-            val appNameState by viewModel.appName.collectAsState()
-            val colorSchemeName by viewModel.colorSchemeName.collectAsState()
-            val isDarkMode by viewModel.isDarkMode.collectAsState()
-            val fontSizeScale by viewModel.fontSizeScale.collectAsState()
-            var tempAppName by remember(appNameState) { mutableStateOf(appNameState) }
-
-            var localHue by remember { mutableStateOf(330f) }
-            var localSat by remember { mutableStateOf(0.53f) }
-            var localVal by remember { mutableStateOf(0.95f) }
-
-            fun hsvToHexLocal(h: Float, s: Float, v: Float): String {
-                val colorInt = android.graphics.Color.HSVToColor(floatArrayOf(h, s, v))
-                return String.format("#%06X", 0xFFFFFF and colorInt).uppercase()
-            }
-
-            LaunchedEffect(colorSchemeName) {
-                val clean = colorSchemeName.trim().removePrefix("#").uppercase()
-                val currentLocalHex = hsvToHexLocal(localHue, localSat, localVal).removePrefix("#").uppercase()
-                if (clean != currentLocalHex) {
-                    val result = FloatArray(3) { 0f }
-                    try {
-                        val colorInt = when (clean) {
-                            "PINK" -> 0xFFF472B6.toInt()
-                            "BLUE" -> 0xFF60A5FA.toInt()
-                            "GREEN" -> 0xFF34D399.toInt()
-                            "ROSE" -> 0xFFF6A6B2.toInt()
-                            "RED" -> 0xFFF87171.toInt()
-                            else -> android.graphics.Color.parseColor("#$clean")
-                        }
-                        android.graphics.Color.colorToHSV(colorInt, result)
-                        localHue = result[0]
-                        localSat = result[1]
-                        localVal = result[2]
-                    } catch (e: Exception) {
-                        // ignore
-                    }
-                }
-            }
 
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -674,41 +647,19 @@ fun SettingsScreen(
                         fontWeight = FontWeight.SemiBold,
                         color = OnSurface
                     )
-                    Row(
+                    OutlinedTextField(
+                        value = brandNameInput,
+                        onValueChange = { brandNameInput = it },
+                        placeholder = { Text("Ex: Gerenciamento de Confecção") },
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = tempAppName,
-                            onValueChange = { tempAppName = it },
-                            placeholder = { Text("Ex: Gerenciamento de Confecção") },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Primary,
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
-                                focusedTextColor = OnSurface,
-                                unfocusedTextColor = OnSurface
-                            )
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Primary,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                            focusedTextColor = OnSurface,
+                            unfocusedTextColor = OnSurface
                         )
-                        Button(
-                            onClick = {
-                                if (tempAppName.isNotBlank()) {
-                                    viewModel.updateAppName(tempAppName)
-                                    Toast.makeText(context, "Nome do app alterado!", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Primary,
-                                contentColor = OnPrimary
-                            ),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 14.dp)
-                        ) {
-                            Text("Salvar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -729,14 +680,14 @@ fun SettingsScreen(
                             color = OnSurface
                         )
                         Text(
-                            text = if (isDarkMode) "Tema Escuro Elegante" else "Tema Claro Alto Contraste",
+                            text = if (isDarkModeInput) "Tema Escuro Elegante" else "Tema Claro Alto Contraste",
                             fontSize = 12.sp,
                             color = OnSurfaceVariant
                         )
                     }
                     Switch(
-                        checked = isDarkMode,
-                        onCheckedChange = { viewModel.updateDarkMode(it) },
+                        checked = isDarkModeInput,
+                        onCheckedChange = { isDarkModeInput = it },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = OnPrimary,
                             checkedTrackColor = Primary,
@@ -775,9 +726,9 @@ fun SettingsScreen(
                             Triple(1.40f, "Extra G", "A++")
                         )
                         sizes.forEach { (scale, label, symbol) ->
-                            val isSelected = Math.abs(fontSizeScale - scale) < 0.05f
+                            val isSelected = Math.abs(fontSizeScaleInput - scale) < 0.05f
                             Button(
-                                onClick = { viewModel.updateFontSizeScale(scale) },
+                                onClick = { fontSizeScaleInput = scale },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (isSelected) Primary else Color.White.copy(alpha = 0.05f),
                                     contentColor = if (isSelected) OnPrimary else OnSurfaceVariant
@@ -834,7 +785,7 @@ fun SettingsScreen(
                                                 val y = change.position.y.coerceIn(0f, size.height.toFloat())
                                                 localSat = x / size.width.toFloat()
                                                 localVal = 1f - (y / size.height.toFloat())
-                                                viewModel.updateColorScheme(hsvToHexLocal(localHue, localSat, localVal))
+                                                selectedColorInput = hsvToHexLocal(localHue, localSat, localVal)
                                                 change.consume()
                                             }
                                         }
@@ -907,7 +858,7 @@ fun SettingsScreen(
                                             if (change.pressed || change.previousPressed) {
                                                 val x = change.position.x.coerceIn(0f, size.width.toFloat())
                                                 localHue = (x / size.width.toFloat()) * 360f
-                                                viewModel.updateColorScheme(hsvToHexLocal(localHue, localSat, localVal))
+                                                selectedColorInput = hsvToHexLocal(localHue, localSat, localVal)
                                                 change.consume()
                                             }
                                         }
@@ -985,7 +936,7 @@ fun SettingsScreen(
                                          .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(4.dp))
                                          .border(BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f)), RoundedCornerShape(4.dp))
                                          .clickable {
-                                             viewModel.updateColorScheme(preset.second)
+                                             selectedColorInput = preset.second
                                          }
                                          .padding(horizontal = 6.dp, vertical = 3.dp)
                                  ) {
@@ -1001,13 +952,22 @@ fun SettingsScreen(
 
                     Button(
                         onClick = {
-                            viewModel.savePersonalizationConfig(
-                                appName = tempAppName,
-                                colorScheme = colorSchemeName,
-                                isDarkMode = isDarkMode,
-                                fontSizeScale = fontSizeScale
-                            )
-                            Toast.makeText(context, "Todas as configurações salvas no banco de dados local!", Toast.LENGTH_LONG).show()
+                            if (brandNameInput.isBlank()) {
+                                Toast.makeText(context, "O nome do aplicativo/marca é obrigatório!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                viewModel.saveAllSettings(
+                                    brandName = brandNameInput,
+                                    category = categoryInput,
+                                    niche = nicheInput,
+                                    colorScheme = selectedColorInput,
+                                    logoText = if (logoTextInput.isNotBlank()) logoTextInput else brandNameInput.take(3).uppercase(),
+                                    logoIcon = logoIconInput,
+                                    logoImage = logoImageInput,
+                                    isDarkMode = isDarkModeInput,
+                                    fontSizeScale = fontSizeScaleInput
+                                )
+                                Toast.makeText(context, "Todas as configurações foram salvas com sucesso!", Toast.LENGTH_LONG).show()
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Primary,
