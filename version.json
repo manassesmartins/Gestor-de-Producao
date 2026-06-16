@@ -1,0 +1,10 @@
+{
+  "version": "1.3.69",
+  "changelog": "Build automático: Commit feat: add dynamic date filtering and settings update
+
+- Implement month-based filtering in Dashboard and Orders screens
+- Add saveAllSettings method for consolidated configuration
+- Update app version to 1.3
+- Set current device date as default for reports",
+  "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
+}
