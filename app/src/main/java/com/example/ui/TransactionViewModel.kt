@@ -991,6 +991,35 @@ class TransactionViewModel(
         }
     }
 
+    fun renameExpenseDescription(oldDesc: String, newDesc: String) {
+        viewModelScope.launch {
+            try {
+                val list = repository.allTransactions.first()
+                list.filter { it.type == "OUTFLOW" && it.description == oldDesc }.forEach { tx ->
+                    val updatedTx = tx.copy(description = newDesc)
+                    repository.insert(updatedTx)
+                }
+                triggerSyncSimulation()
+            } catch (e: Exception) {
+                android.util.Log.e("TransactionViewModel", "Error renaming description", e)
+            }
+        }
+    }
+
+    fun deleteExpenseDescription(desc: String) {
+        viewModelScope.launch {
+            try {
+                val list = repository.allTransactions.first()
+                list.filter { it.type == "OUTFLOW" && it.description == desc }.forEach { tx ->
+                    repository.deleteById(tx.id)
+                }
+                triggerSyncSimulation()
+            } catch (e: Exception) {
+                android.util.Log.e("TransactionViewModel", "Error deleting description", e)
+            }
+        }
+    }
+
     fun addCategory(name: String, type: String) {
         viewModelScope.launch {
             val newId = repository.insertCategory(com.example.data.CategoryEntity(name = name, type = type))

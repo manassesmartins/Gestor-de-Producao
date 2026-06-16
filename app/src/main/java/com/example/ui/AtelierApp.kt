@@ -665,16 +665,19 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
                             viewModel.setAddingTransaction(false)
                             transactionToEdit = null
                         },
-                        onSubmit = { desc, amount, cat, type, week ->
-                            val toEdit = transactionToEdit
-                            if (toEdit != null) {
-                                viewModel.editTransaction(toEdit.id, desc, amount, cat, type, toEdit.dateString, week, toEdit.timestamp)
+                        onSubmit = { id, desc, amount, cat, type, week ->
+                            if (id != null) {
+                                val existing = allTransactions.find { it.id == id }
+                                val dateStr = existing?.dateString ?: ""
+                                val tstamp = existing?.timestamp
+                                viewModel.editTransaction(id, desc, amount, cat, type, dateStr, week, tstamp)
                                 Toast.makeText(context, "Lançamento atualizado com sucesso!", Toast.LENGTH_SHORT).show()
                                 transactionToEdit = null
                             } else {
                                 viewModel.addTransaction(desc, amount, cat, type, week = week)
                                 Toast.makeText(context, "Lançamento salvo com sucesso!", Toast.LENGTH_SHORT).show()
                             }
+                            viewModel.setAddingTransaction(false)
                         },
                         transactionToEdit = transactionToEdit
                     )

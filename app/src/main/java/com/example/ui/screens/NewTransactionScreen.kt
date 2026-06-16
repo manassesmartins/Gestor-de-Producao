@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,7 +36,7 @@ fun NewTransactionScreen(
     viewModel: TransactionViewModel,
     isCloudBackupEnabled: Boolean,
     onDismiss: () -> Unit,
-    onSubmit: (String, Double, String, String, String) -> Unit,
+    onSubmit: (Long?, String, Double, String, String, String) -> Unit,
     transactionToEdit: TransactionEntity? = null
 ) {
     val Primary = MaterialTheme.colorScheme.primary
@@ -49,11 +50,13 @@ fun NewTransactionScreen(
     val SurfaceDark = MaterialTheme.colorScheme.background
     val ErrorColor = MaterialTheme.colorScheme.error
 
-    var description by remember(transactionToEdit) { mutableStateOf(transactionToEdit?.description ?: "") }
-    var amountText by remember(transactionToEdit) { mutableStateOf(transactionToEdit?.amount?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: "") }
-    val type = transactionToEdit?.type ?: "OUTFLOW"
-    val toggleSync = remember(transactionToEdit) { mutableStateOf(isCloudBackupEnabled) }
-    var selectedWeek by remember(transactionToEdit) { mutableStateOf(transactionToEdit?.week ?: "1ª Semana") }
+    var currentEditingTransaction by remember(transactionToEdit) { mutableStateOf<TransactionEntity?>(transactionToEdit) }
+
+    var description by remember(currentEditingTransaction) { mutableStateOf(currentEditingTransaction?.description ?: "") }
+    var amountText by remember(currentEditingTransaction) { mutableStateOf(currentEditingTransaction?.amount?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: "") }
+    val type = currentEditingTransaction?.type ?: "OUTFLOW"
+    val toggleSync = remember(currentEditingTransaction) { mutableStateOf(isCloudBackupEnabled) }
+    var selectedWeek by remember(currentEditingTransaction) { mutableStateOf(currentEditingTransaction?.week ?: "1ª Semana") }
 
     val transactions by viewModel.allTransactions.collectAsStateWithLifecycle(emptyList())
     val existingExpenses = remember(transactions) {
@@ -61,13 +64,17 @@ fun NewTransactionScreen(
     }
     var expandedDescDropdown by remember { mutableStateOf(false) }
 
-    var categoryText by remember(transactionToEdit) { mutableStateOf(transactionToEdit?.category ?: "") }
+    var categoryText by remember(currentEditingTransaction) { mutableStateOf(currentEditingTransaction?.category ?: "") }
     var expandedCategoryDropdown by remember { mutableStateOf(false) }
 
     val masterCategories by viewModel.allCategories.collectAsStateWithLifecycle(emptyList())
     val existingCategoryNames = remember(masterCategories) {
         masterCategories.filter { it.type == "OUTFLOW" }.map { it.name }.distinct().sortedBy { it.lowercase() }
     }
+
+    var expenseToRename by remember { mutableStateOf<String?>(null) }
+    var renameValue by remember { mutableStateOf("") }
+    var expenseToDelete by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -78,7 +85,7 @@ fun NewTransactionScreen(
         TopAppBar(
             title = {
                 Text(
-                    text = if (transactionToEdit != null) "Editar Gasto" else "Novo Gasto",
+                    text = if (currentEditingTransaction != null) "Editar Gasto" else "Novo Gasto",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Primary
@@ -130,7 +137,7 @@ fun NewTransactionScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = if (transactionToEdit != null) "Atualize as informações do gasto registrado para manter suas contas corretas." else "Registre e salve seus gastos na lista para ter total controle financeiro sem complicações.",
+                        text = if (currentEditingTransaction != null) "Atualize as informações do gasto registrado para manter suas contas corretas." else "Registre e salve seus gastos na lista para ter total controle financeiro sem complicações.",
                         fontSize = 14.sp,
                         color = OnSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -262,7 +269,7 @@ fun NewTransactionScreen(
                             ExposedDropdownMenu(
                                 expanded = expandedDescDropdown,
                                 onDismissRequest = { expandedDescDropdown = false },
-                                modifier = Modifier.background(SurfaceDark)
+                                modifier = Modifier.background(SurfaceDark).border(1.dp, Color.White.copy(alpha = 0.08f))
                             ) {
                                 filteredExpenses.forEach { exp ->
                                     DropdownMenuItem(
@@ -270,6 +277,42 @@ fun NewTransactionScreen(
                                         onClick = {
                                             description = exp
                                             expandedDescDropdown = false
+                                        },
+                                        trailingIcon = {
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                IconButton(
+                                                    onClick = {
+                                                        expenseToRename = exp
+                                                        renameValue = exp
+                                                        expandedDescDropdown = false
+                                                    },
+                                                    modifier = Modifier.size(24.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Edit,
+                                                        contentDescription = "Editar histórico",
+                                                        tint = Primary,
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                }
+                                                IconButton(
+                                                    onClick = {
+                                                        expenseToDelete = exp
+                                                        expandedDescDropdown = false
+                                                    },
+                                                    modifier = Modifier.size(24.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Delete,
+                                                        contentDescription = "Excluir histórico",
+                                                        tint = ErrorColor,
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                }
+                                            }
                                         }
                                     )
                                 }
@@ -364,7 +407,8 @@ fun NewTransactionScreen(
                         if (categoryText.isNotBlank() && amt > 0) {
                             // If description is empty, default it to the category name
                             val finalDesc = description.ifBlank { categoryText }
-                            onSubmit(finalDesc, amt, categoryText.trim(), type, selectedWeek)
+                            onSubmit(currentEditingTransaction?.id, finalDesc, amt, categoryText.trim(), type, selectedWeek)
+                            currentEditingTransaction = null
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -384,10 +428,141 @@ fun NewTransactionScreen(
                     ) {
                         Icon(imageVector = Icons.Default.Check, contentDescription = null)
                         Text(
-                            text = if (transactionToEdit != null) "Atualizar Gasto" else "Salvar Gasto",
+                            text = if (currentEditingTransaction != null) "Atualizar Gasto" else "Salvar Gasto",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
+                    }
+                }
+
+                if (currentEditingTransaction != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            currentEditingTransaction = null
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = OnSurfaceVariant
+                        ),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Text(
+                            text = "Cancelar Edição (Novo Gasto)",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            // Recent Expenses History List (Histórico de Gastos Salvos)
+            val recentExpenses = transactions.filter { it.type == "OUTFLOW" }
+                .sortedByDescending { it.timestamp }
+                .take(5)
+
+            if (recentExpenses.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.White.copy(alpha = 0.05f))
+                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "HISTÓRICO RECENTE DE GASTOS",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Primary,
+                            letterSpacing = 0.5.sp
+                        )
+                        
+                        recentExpenses.forEachIndexed { index, exp ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        currentEditingTransaction = exp
+                                    }
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = exp.category,
+                                        fontSize = 13.sp,
+                                        color = OnSurface,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (exp.description.isNotBlank() && exp.description != exp.category) {
+                                        Text(
+                                            text = exp.description,
+                                            fontSize = 12.sp,
+                                            color = OnSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    Text(
+                                        text = "${exp.week} • ${exp.dateString}",
+                                        fontSize = 10.sp,
+                                        color = OnSurfaceVariant.copy(alpha = 0.7f)
+                                    )
+                                }
+                                
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = String.format(Locale("pt", "BR"), "R$ %,.2f", exp.amount),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ErrorColor
+                                    )
+                                    
+                                    IconButton(
+                                        onClick = {
+                                            currentEditingTransaction = exp
+                                        },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Editar",
+                                            tint = Primary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    
+                                    IconButton(
+                                        onClick = {
+                                            viewModel.deleteTransaction(exp.id)
+                                        },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Excluir",
+                                            tint = ErrorColor,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            
+                            if (index < recentExpenses.lastIndex) {
+                                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.5.dp)
+                            }
+                        }
                     }
                 }
             }
@@ -423,5 +598,87 @@ fun NewTransactionScreen(
                 }
             }
         }
+    }
+
+    // Dialog for renaming historical description
+    expenseToRename?.let { oldDesc ->
+        AlertDialog(
+            onDismissRequest = { expenseToRename = null },
+            title = { Text("Editar Nome do Histórico", color = Primary, fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Altere o nome deste item histórico para todas as despesas salvas correspondentes:", fontSize = 13.sp, color = OnSurfaceVariant)
+                    OutlinedTextField(
+                        value = renameValue,
+                        onValueChange = { renameValue = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = OnSurface,
+                            unfocusedTextColor = OnSurface,
+                            focusedBorderColor = Primary,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                        ),
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val newValue = renameValue.trim()
+                        if (newValue.isNotEmpty()) {
+                            viewModel.renameExpenseDescription(oldDesc, newValue)
+                            if (description == oldDesc) {
+                                description = newValue
+                            }
+                            expenseToRename = null
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                ) {
+                    Text("Salvar", color = OnPrimary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { expenseToRename = null }) {
+                    Text("Cancelar", color = OnSurfaceVariant)
+                }
+            }
+        )
+    }
+
+    // Dialog for deleting historical description
+    expenseToDelete?.let { oldDesc ->
+        AlertDialog(
+            onDismissRequest = { expenseToDelete = null },
+            title = { Text("Excluir Histórico", color = ErrorColor, fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    text = "Deseja realmente apagar o histórico de \"$oldDesc\"? Isso excluirá todas as despesas lançadas anteriormente com este histórico.",
+                    fontSize = 13.sp,
+                    color = OnSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteExpenseDescription(oldDesc)
+                        if (description == oldDesc) {
+                            description = ""
+                        }
+                        expenseToDelete = null
+                        expandedDescDropdown = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ErrorColor)
+                ) {
+                    Text("Excluir", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { expenseToDelete = null }) {
+                    Text("Cancelar", color = OnSurfaceVariant)
+                }
+            }
+        )
     }
 }
