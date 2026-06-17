@@ -32,7 +32,7 @@ sealed class UpdateStatus {
         val date: String
     ) : UpdateStatus()
     object UpToDate : UpdateStatus()
-    data class Downloading(val progress: Float) : UpdateStatus()
+    data class Downloading(val progress: Float, val statusText: String = "") : UpdateStatus()
     data class Downloaded(val apkFile: File) : UpdateStatus()
     data class Error(val message: String) : UpdateStatus()
 }
@@ -46,7 +46,11 @@ enum class UpdateType {
 class GitHubUpdater(private val context: Context) {
 
     private val sharedPrefs = context.getSharedPreferences("ms_producao_github_updater_prefs", Context.MODE_PRIVATE)
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(15, java.util.concurrent.TimeUnit.MINUTES)
+        .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
 
     init {
         // Migrate old cached values or blank values to the new default repository configurations
@@ -294,7 +298,7 @@ class GitHubUpdater(private val context: Context) {
      * Downloads the APK file from the provided URL, reporting progress.
      */
     suspend fun downloadApk(url: String): File? = withContext(Dispatchers.IO) {
-        _status.value = UpdateStatus.Downloading(0.01f)
+        _status.value = UpdateStatus.Downloading(0.01f, "Conectando ao servidor para baixar atualização...")
         try {
             val request = Request.Builder().url(url).build()
             client.newCall(request).execute().use { response ->
@@ -315,7 +319,7 @@ class GitHubUpdater(private val context: Context) {
                     cacheFile.delete()
                 }
 
-                val buffer = ByteArray(4096)
+                val buffer = ByteArray(8192) // Buffered reads of 8KB for faster transfer
                 var bytesRead: Int
                 var totalBytesRead = 0L
 
@@ -324,9 +328,17 @@ class GitHubUpdater(private val context: Context) {
                         while (inputStream.read(buffer).also { bytesRead = it } != -1) {
                             outputStream.write(buffer, 0, bytesRead)
                             totalBytesRead += bytesRead
+                            val downloadedMb = totalBytesRead.toDouble() / (1024.0 * 1024.0)
+
                             if (contentLength > 0) {
                                 val progress = totalBytesRead.toFloat() / contentLength.toFloat()
-                                _status.value = UpdateStatus.Downloading(progress.coerceIn(0.01f, 0.99f))
+                                val totalMb = contentLength.toDouble() / (1024.0 * 1024.0)
+                                val statusText = String.format(java.util.Locale.US, "Baixando: %.2f MB de %.2f MB (%.0f%%)", downloadedMb, totalMb, progress * 100)
+                                _status.value = UpdateStatus.Downloading(progress.coerceIn(0.01f, 0.99f), statusText)
+                            } else {
+                                // Indeterminate progress (contentLength <= 0)
+                                val statusText = String.format(java.util.Locale.US, "Baixando: %.2f MB recebidos (tamanho total não informado)", downloadedMb)
+                                _status.value = UpdateStatus.Downloading(-1f, statusText)
                             }
                         }
                         outputStream.flush()

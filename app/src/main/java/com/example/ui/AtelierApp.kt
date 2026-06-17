@@ -169,24 +169,34 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                CircularProgressIndicator(
-                                    progress = stat.progress,
-                                    color = Primary,
-                                    modifier = Modifier.size(56.dp)
-                                )
+                                if (stat.progress < 0f) {
+                                    CircularProgressIndicator(
+                                        color = Primary,
+                                        modifier = Modifier.size(56.dp)
+                                    )
+                                } else {
+                                    CircularProgressIndicator(
+                                        progress = stat.progress,
+                                        color = Primary,
+                                        modifier = Modifier.size(56.dp)
+                                    )
+                                }
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        text = "Baixando pacote seguro de atualização de tabelas e recursos do servidor de dados...",
+                                        text = stat.statusText.ifBlank { "Baixando pacote seguro de atualização de tabelas e recursos do servidor de dados..." },
                                         fontSize = 13.sp,
-                                        color = OnSurfaceVariant
+                                        color = OnSurfaceVariant,
+                                        textAlign = TextAlign.Center
                                     )
-                                    Text(
-                                        text = "${(stat.progress * 100).toInt()}% concluído",
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Primary,
-                                        modifier = Modifier.padding(top = 4.dp)
-                                    )
+                                    if (stat.progress >= 0f) {
+                                        Text(
+                                            text = "${(stat.progress * 100).toInt()}% concluído",
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Primary,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
+                                    }
                                 }
                             }
                         },
@@ -787,24 +797,34 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            CircularProgressIndicator(
-                                progress = stat.progress,
-                                color = Primary,
-                                modifier = Modifier.size(56.dp)
-                            )
+                            if (stat.progress < 0f) {
+                                CircularProgressIndicator(
+                                    color = Primary,
+                                    modifier = Modifier.size(56.dp)
+                                )
+                            } else {
+                                CircularProgressIndicator(
+                                    progress = stat.progress,
+                                    color = Primary,
+                                    modifier = Modifier.size(56.dp)
+                                )
+                            }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = "Baixando pacote seguro de atualização de tabelas e recursos do servidor de dados...",
+                                    text = stat.statusText.ifBlank { "Baixando pacote seguro de atualização de tabelas e recursos do servidor de dados..." },
                                     fontSize = 13.sp,
-                                    color = OnSurfaceVariant
+                                    color = OnSurfaceVariant,
+                                    textAlign = TextAlign.Center
                                 )
-                                Text(
-                                    text = "${(stat.progress * 100).toInt()}% concluído",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Primary,
-                                    modifier = Modifier.padding(top = 4.dp)
-                                )
+                                if (stat.progress >= 0f) {
+                                    Text(
+                                        text = "${(stat.progress * 100).toInt()}% concluído",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Primary,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
                             }
                         }
                     },
