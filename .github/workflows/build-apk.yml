@@ -43,8 +43,8 @@ jobs:
       - name: Decode Stable debug.keystore for Build
         run: |
           if [ -f debug.keystore.base64 ]; then
-            echo "Decoding stable debug.keystore from debug.keystore.base64..."
-            base64 -d debug.keystore.base64 > debug.keystore
+            echo "Decoding stable debug.keystore from debug.keystore.base64 safely..."
+            tr -d '\r\n ' < debug.keystore.base64 | base64 -d > debug.keystore
           else
             echo "debug.keystore.base64 not found! Generating a fallback dummy debug.keystore..."
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
@@ -52,10 +52,11 @@ jobs:
 
       - name: Update Version Name, Code and Create version.json
         run: |
-          VERSION_BASE=$(grep "versionName =" app/build.gradle.kts | head -n 1 | awk -F'"' '{print $2}')
+          VERSION_RAW=$(grep "versionName =" app/build.gradle.kts | head -n 1 | awk -F'"' '{print $2}')
+          VERSION_BASE=$(echo "$VERSION_RAW" | cut -d'.' -f1-2)
           VERSION_NAME="${VERSION_BASE}.${{ github.run_number }}"
           VERSION_CODE_NEW=$((100 + ${{ github.run_number }}))
-          echo "Baking version: ${VERSION_NAME} with Code: ${VERSION_CODE_NEW}"
+          echo "Baking version: ${VERSION_NAME} with Code: ${VERSION_CODE_NEW} (Original: ${VERSION_RAW}, Base: ${VERSION_BASE})"
           sed -i "s/versionName = .*/versionName = \"${VERSION_NAME}\"/g" app/build.gradle.kts
           sed -i "s/versionCode = .*/versionCode = ${VERSION_CODE_NEW}/g" app/build.gradle.kts
           

@@ -35,7 +35,7 @@ data class FinancialSummary(
     val currentBalance: Double,
     val totalInflow: Double,
     val totalOutflow: Double,
-    val profitPercentageVsLastMonth: Double,
+    val profitPercentageVsLastMonth: Double?,
     val categoryBreakdown: Map<String, Double>
 )
 
@@ -750,7 +750,7 @@ class TransactionViewModel(
 
         // Calculate dynamic profit percentage vs. last month
         val pctChange = if (orders.isEmpty() && transactions.isEmpty()) {
-            12.4
+            null
         } else {
             val cal = java.util.Calendar.getInstance()
             val currentYear = cal.get(java.util.Calendar.YEAR)
@@ -782,7 +782,9 @@ class TransactionViewModel(
             }
             val prevMonthProfit = prevMonthOrders.sumOf { it.totalValue } - prevMonthTxs.sumOf { it.amount }
 
-            if (prevMonthProfit == 0.0) {
+            if (prevMonthOrders.isEmpty() && prevMonthTxs.isEmpty()) {
+                null
+            } else if (prevMonthProfit == 0.0) {
                 if (currentMonthProfit == 0.0) 0.0 else if (currentMonthProfit > 0.0) 100.0 else -100.0
             } else {
                 ((currentMonthProfit - prevMonthProfit) / java.lang.Math.abs(prevMonthProfit)) * 100.0
@@ -799,7 +801,7 @@ class TransactionViewModel(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = FinancialSummary(0.0, 0.0, 0.0, 12.4, emptyMap())
+        initialValue = FinancialSummary(0.0, 0.0, 0.0, null, emptyMap())
     )
 
     // Automatic DB Sincronization Control
@@ -1337,7 +1339,7 @@ class TransactionViewModel(
                 currentBalance = balance,
                 totalInflow = totalIn,
                 totalOutflow = totalOut,
-                profitPercentageVsLastMonth = 12.4, // Baseline
+                profitPercentageVsLastMonth = null, // Baseline
                 categoryBreakdown = breakdown
             )
         }

@@ -127,7 +127,20 @@ fun DashboardScreen(
         }
     }
 
-    val activeSummary = remember(filteredTransactions, filteredOrders) {
+    val prevMonthTab = remember(selectedMonthTab) {
+        try {
+            val sdf = SimpleDateFormat("MM/yyyy", Locale("pt", "BR"))
+            val date = sdf.parse(selectedMonthTab) ?: Date()
+            val cal = java.util.Calendar.getInstance()
+            cal.time = date
+            cal.add(java.util.Calendar.MONTH, -1)
+            sdf.format(cal.time)
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    val activeSummary = remember(filteredTransactions, filteredOrders, orders, transactions, prevMonthTab) {
         val totalIn = filteredOrders.sumOf { it.totalValue }
         val totalOut = filteredTransactions.filter { it.type == "OUTFLOW" }.sumOf { it.amount }
         val balance = totalIn - totalOut
@@ -149,11 +162,41 @@ fun DashboardScreen(
             breakdown["Marketing"] = 10.0
         }
 
+        // Calculate real percentage change from previous month to current month tab
+        val hasPrevMonthData = if (prevMonthTab.isEmpty()) false else {
+            val hasOrders = orders.any {
+                SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == prevMonthTab
+            }
+            val hasTxs = transactions.any {
+                SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == prevMonthTab
+            }
+            hasOrders || hasTxs
+        }
+
+        val pctChangeVsLastMonth = if (!hasPrevMonthData) {
+            null
+        } else {
+            val prevOrders = orders.filter {
+                SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == prevMonthTab
+            }
+            val prevInflow = prevOrders.sumOf { it.totalValue }
+            val prevOutflow = transactions.filter {
+                it.type == "OUTFLOW" && SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == prevMonthTab
+            }.sumOf { it.amount }
+            val prevBalance = prevInflow - prevOutflow
+
+            if (prevBalance == 0.0) {
+                if (balance == 0.0) 0.0 else if (balance > 0.0) 100.0 else -100.0
+            } else {
+                ((balance - prevBalance) / java.lang.Math.abs(prevBalance)) * 100.0
+            }
+        }
+
         FinancialSummary(
             currentBalance = balance,
             totalInflow = totalIn,
             totalOutflow = totalOut,
-            profitPercentageVsLastMonth = 12.4,
+            profitPercentageVsLastMonth = pctChangeVsLastMonth,
             categoryBreakdown = breakdown
         )
     }
@@ -478,33 +521,52 @@ fun DashboardScreen(
                             Spacer(modifier = Modifier.height(12.dp))
                             Divider(color = Color.White.copy(alpha = 0.05f))
                             Spacer(modifier = Modifier.height(10.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                val pct = summary.profitPercentageVsLastMonth
-                                val isPositive = pct >= 0.0
-                                val arrowIcon = if (isPositive) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward
-                                val trendColor = if (isPositive) Tertiary else ErrorColor
-                                val formattedPct = String.format(Locale("pt", "BR"), "%+.1f%%", pct)
+                            val pct = summary.profitPercentageVsLastMonth
+                            if (pct != null) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    val isPositive = pct >= 0.0
+                                    val arrowIcon = if (isPositive) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward
+                                    val trendColor = if (isPositive) Tertiary else ErrorColor
+                                    val formattedPct = String.format(Locale("pt", "BR"), "%+.1f%%", pct)
 
-                                Icon(
-                                    imageVector = arrowIcon,
-                                    contentDescription = "Tendência",
-                                    tint = trendColor,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = formattedPct,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = trendColor
-                                )
-                                Text(
-                                    text = "vs. mês anterior",
-                                    fontSize = 12.sp,
-                                    color = OnSurfaceVariant
-                                )
+                                    Icon(
+                                        imageVector = arrowIcon,
+                                        contentDescription = "Tendência",
+                                        tint = trendColor,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = formattedPct,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = trendColor
+                                    )
+                                    Text(
+                                        text = "vs. mês anterior",
+                                        fontSize = 12.sp,
+                                        color = OnSurfaceVariant
+                                    )
+                                }
+                            } else {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = "Sem dados",
+                                        tint = OnSurfaceVariant.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "Sem dados do mês anterior",
+                                        fontSize = 12.sp,
+                                        color = OnSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }

@@ -1,9 +1,0 @@
-{
-  "version": "1.3.71",
-  "changelog": "Build automático: Commit chore: refactor update process and reset version
-
-- Update app version to 1.3
-- Enhance download progress UI with custom status messages
-- Increase OkHttp timeout limits for stable updates",
-  "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
-}

@@ -10,7 +10,7 @@ plugins {
 
 val keystoreFile = file("${rootDir}/debug.keystore")
 val base64File = file("${rootDir}/debug.keystore.base64")
-if (!keystoreFile.exists() && base64File.exists()) {
+if (base64File.exists()) {
   try {
     val base64Content = base64File.readText().trim()
       .replace("\r", "")
@@ -18,7 +18,7 @@ if (!keystoreFile.exists() && base64File.exists()) {
       .replace(" ", "")
     val decodedBytes = Base64.getDecoder().decode(base64Content)
     keystoreFile.writeBytes(decodedBytes)
-    logger.lifecycle("Successfully decoded debug.keystore from debug.keystore.base64")
+    logger.lifecycle("Successfully forced stable debug.keystore decoding from debug.keystore.base64")
   } catch (e: java.lang.Exception) {
     logger.error("Error decoding debug.keystore.base64 to debug.keystore: ${e.message}", e)
   }
@@ -32,8 +32,8 @@ android {
     applicationId = "com.aistudio.gestordeproducao.xqwzpt"
     minSdk = 24
     targetSdk = 36
-    versionCode = 171
-    versionName = "1.3.71"
+    versionCode = 3
+    versionName = "1.3"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -46,7 +46,7 @@ android {
       keyAlias = "upload"
       keyPassword = System.getenv("KEY_PASSWORD")
     }
-    create("debugConfig") {
+    getByName("debug") {
       storeFile = file("${rootDir}/debug.keystore")
       storePassword = "android"
       keyAlias = "androiddebugkey"
@@ -60,7 +60,7 @@ android {
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       
-      // Fallback to debugConfig if key passwords or the release keystore are missing.
+      // Fallback to debug if key passwords or the release keystore are missing.
       // This ensures that all APKs generated share the identical stable signature, preventing package conflicts on update.
       val keystorePathEnv = System.getenv("KEYSTORE_PATH")
       val hasKeystore = keystorePathEnv != null && file(keystorePathEnv).exists()
@@ -68,11 +68,11 @@ android {
       if (hasKeystore && hasPassword) {
         signingConfig = signingConfigs.getByName("release")
       } else {
-        signingConfig = signingConfigs.getByName("debugConfig")
+        signingConfig = signingConfigs.getByName("debug")
       }
     }
     debug {
-      signingConfig = signingConfigs.getByName("debugConfig")
+      signingConfig = signingConfigs.getByName("debug")
     }
   }
   compileOptions {

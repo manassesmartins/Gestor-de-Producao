@@ -71,6 +71,28 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
     var orderToEdit by remember { mutableStateOf<com.example.data.OrderEntity?>(null) }
     var orderForInvoice by remember { mutableStateOf<com.example.data.OrderEntity?>(null) }
     
+    var filterUrgentOnly by remember { mutableStateOf(false) }
+
+    val overdueOrdersCount = remember(orders) {
+        orders.count { order ->
+            if (order.status == "Concluído") false
+            else {
+                val info = getDeadlineInfo(order.timestamp, order.status)
+                info.status == DeadlineStatus.OVERDUE
+            }
+        }
+    }
+
+    val nearTodayOrdersCount = remember(orders) {
+        orders.count { order ->
+            if (order.status == "Concluído") false
+            else {
+                val info = getDeadlineInfo(order.timestamp, order.status)
+                info.status == DeadlineStatus.TODAY || info.status == DeadlineStatus.NEAR
+            }
+        }
+    }
+
     var showDatePickerDialog by remember { mutableStateOf(false) }
     var selectedFilterDateMillis by remember { mutableStateOf<Long?>(null) }
 
@@ -119,14 +141,17 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
         }
     }
 
-    val filteredOrders = remember(selectedMonthTab, selectedOrderWeek, selectedFilterDateMillis, orders) {
-        // Filter by chosen month tab
-        val inSelectedMonth = orders.filter { 
-            SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == selectedMonthTab 
+    val filteredOrders = remember(selectedMonthTab, selectedOrderWeek, selectedFilterDateMillis, filterUrgentOnly, orders) {
+        val baseList = if (filterUrgentOnly) {
+            orders
+        } else {
+            orders.filter { 
+                SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == selectedMonthTab 
+            }
         }
         
-        val byWeek = if (selectedOrderWeek == "Tudo") inSelectedMonth else inSelectedMonth.filter { o -> o.week == selectedOrderWeek }
-        if (selectedFilterDateMillis != null) {
+        val byWeek = if (selectedOrderWeek == "Tudo" || filterUrgentOnly) baseList else baseList.filter { o -> o.week == selectedOrderWeek }
+        val byDate = if (selectedFilterDateMillis != null && !filterUrgentOnly) {
             val cal = java.util.Calendar.getInstance()
             cal.timeInMillis = selectedFilterDateMillis!!
             val d1 = cal.get(java.util.Calendar.DAY_OF_YEAR)
@@ -139,6 +164,18 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
             }
         } else {
             byWeek
+        }
+
+        if (filterUrgentOnly) {
+            byDate.filter { o ->
+                if (o.status == "Concluído") false
+                else {
+                    val info = getDeadlineInfo(o.timestamp, o.status)
+                    info.status == DeadlineStatus.OVERDUE || info.status == DeadlineStatus.TODAY || info.status == DeadlineStatus.NEAR
+                }
+            }
+        } else {
+            byDate
         }
     }
 
@@ -185,6 +222,129 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
                             contentDescription = "Calendário",
                             tint = if (selectedFilterDateMillis != null) Primary else OnSurfaceVariant
                         )
+                    }
+                }
+            }
+
+            if (overdueOrdersCount > 0 || nearTodayOrdersCount > 0) {
+                item {
+                    val cardBg = if (overdueOrdersCount > 0) {
+                        ErrorColor.copy(alpha = 0.08f)
+                    } else {
+                        Tertiary.copy(alpha = 0.08f)
+                    }
+                    val borderColor = if (overdueOrdersCount > 0) {
+                        ErrorColor.copy(alpha = 0.3f)
+                    } else {
+                        Tertiary.copy(alpha = 0.3f)
+                    }
+                    
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable { filterUrgentOnly = !filterUrgentOnly },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = cardBg),
+                        border = BorderStroke(1.dp, borderColor)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(if (overdueOrdersCount > 0) ErrorColor.copy(alpha = 0.2f) else Tertiary.copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (overdueOrdersCount > 0) Icons.Default.Warning else Icons.Default.Notifications,
+                                        contentDescription = "Alerta",
+                                        tint = if (overdueOrdersCount > 0) ErrorColor else Tertiary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                
+                                Column {
+                                    Text(
+                                        text = "Painel de Lembretes",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = OnSurface
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    val alertText = buildString {
+                                        if (overdueOrdersCount > 0) {
+                                            append("$overdueOrdersCount encomenda(s) atrasada(s)")
+                                        }
+                                        if (nearTodayOrdersCount > 0) {
+                                            if (this.isNotEmpty()) append(" e ")
+                                            append("$nearTodayOrdersCount vencendo logo")
+                                        }
+                                    }
+                                    Text(
+                                        text = alertText,
+                                        fontSize = 12.sp,
+                                        color = OnSurfaceVariant
+                                    )
+                                }
+                            }
+                            
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (filterUrgentOnly) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Primary.copy(alpha = 0.2f))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = "Filtrado",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Primary
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { filterUrgentOnly = false },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Limpar Filtro",
+                                            tint = OnSurfaceVariant,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                } else {
+                                    Text(
+                                        text = "Ver urgentes",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Primary
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowForward,
+                                        contentDescription = "Filtrar",
+                                        tint = Primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -344,6 +504,44 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
                                             color = OnSurfaceVariant
                                         )
                                     }
+                                    
+                                    val activeOrders = group.filter { it.status != "Concluído" }
+                                    val earliestActiveDue = activeOrders.minOfOrNull { it.timestamp }
+                                    if (earliestActiveDue != null) {
+                                        val dlInfo = getDeadlineInfo(earliestActiveDue, "Pendente")
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        ) {
+                                            val badgeColor = when (dlInfo.status) {
+                                                DeadlineStatus.OVERDUE -> ErrorColor
+                                                DeadlineStatus.TODAY -> Tertiary
+                                                DeadlineStatus.NEAR -> Primary
+                                                else -> OnSurfaceVariant
+                                            }
+                                            Icon(
+                                                imageVector = if (dlInfo.status == DeadlineStatus.OVERDUE) Icons.Default.Warning else Icons.Default.Notifications,
+                                                contentDescription = "Vencimento",
+                                                tint = badgeColor,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = dlInfo.label,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = badgeColor
+                                            )
+                                        }
+                                    } else if (group.isNotEmpty()) {
+                                        Text(
+                                            text = "Pedido Concluído",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Tertiary,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        )
+                                    }
                                 }
                                 Box(
                                     modifier = Modifier
@@ -376,7 +574,11 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text("${order.pantyType} - TAM / ${order.pantySize}", fontSize = 13.sp, color = OnSurface, fontWeight = FontWeight.Bold)
                                         Text("Qtd: ${order.quantity} | R$ ${order.pantyValue} un.", fontSize = 11.sp, color = OnSurfaceVariant)
-                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 4.dp)) {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        ) {
                                             Box(
                                                 modifier = Modifier
                                                     .clip(RoundedCornerShape(4.dp))
@@ -384,6 +586,29 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
                                                     .padding(horizontal = 4.dp, vertical = 2.dp)
                                             ) {
                                                 Text(order.status, fontSize = 9.sp, color = if (order.status == "Concluído") Tertiary else ErrorColor, fontWeight = FontWeight.SemiBold)
+                                            }
+                                            
+                                            val sDateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale("pt", "BR"))
+                                            if (order.status != "Concluído") {
+                                                val itemDl = getDeadlineInfo(order.timestamp, order.status)
+                                                val badgeColor = when (itemDl.status) {
+                                                    DeadlineStatus.OVERDUE -> ErrorColor
+                                                    DeadlineStatus.TODAY -> Tertiary
+                                                    DeadlineStatus.NEAR -> Primary
+                                                    else -> OnSurfaceVariant
+                                                }
+                                                Text(
+                                                    text = "• ${itemDl.label}",
+                                                    fontSize = 11.sp,
+                                                    color = badgeColor,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            } else {
+                                                Text(
+                                                    text = "• Prazo: ${sDateFormatter.format(Date(order.timestamp))}",
+                                                    fontSize = 11.sp,
+                                                    color = OnSurfaceVariant
+                                                )
                                             }
                                         }
                                     }
@@ -1129,3 +1354,56 @@ fun OrderInvoiceDialog(
         }
     )
 }
+
+enum class DeadlineStatus {
+    COMPLETED,
+    FUTURE,
+    NEAR,       // 1 - 3 days
+    TODAY,      // 0 days
+    OVERDUE     // < 0 days
+}
+
+data class DeadlineInfo(
+    val status: DeadlineStatus,
+    val daysRemaining: Int,
+    val label: String
+)
+
+fun getDeadlineInfo(orderTimestamp: Long, orderStatus: String): DeadlineInfo {
+    if (orderStatus == "Concluído") {
+        return DeadlineInfo(DeadlineStatus.COMPLETED, 0, "Concluído")
+    }
+
+    val now = System.currentTimeMillis()
+    val todayCal = java.util.Calendar.getInstance()
+    todayCal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+    todayCal.set(java.util.Calendar.MINUTE, 0)
+    todayCal.set(java.util.Calendar.SECOND, 0)
+    todayCal.set(java.util.Calendar.MILLISECOND, 0)
+    val startOfToday = todayCal.timeInMillis
+
+    val dueCal = java.util.Calendar.getInstance()
+    dueCal.timeInMillis = orderTimestamp
+    dueCal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+    dueCal.set(java.util.Calendar.MINUTE, 0)
+    dueCal.set(java.util.Calendar.SECOND, 0)
+    dueCal.set(java.util.Calendar.MILLISECOND, 0)
+    val startOfDueDate = dueCal.timeInMillis
+
+    val diffMillis = startOfDueDate - startOfToday
+    val daysRemaining = (diffMillis / (1000 * 60 * 60 * 24)).toInt()
+
+    return when {
+        daysRemaining < 0 -> DeadlineInfo(DeadlineStatus.OVERDUE, daysRemaining, "Atrasada")
+        daysRemaining == 0 -> DeadlineInfo(DeadlineStatus.TODAY, daysRemaining, "Vence Hoje")
+        daysRemaining in 1..3 -> {
+            val label = if (daysRemaining == 1) "Vence Amanhã" else "Vence em $daysRemaining dias"
+            DeadlineInfo(DeadlineStatus.NEAR, daysRemaining, label)
+        }
+        else -> {
+            val df = SimpleDateFormat("dd/MM/yyyy", Locale("pt", "BR"))
+            DeadlineInfo(DeadlineStatus.FUTURE, daysRemaining, "Prazo: ${df.format(Date(orderTimestamp))}")
+        }
+    }
+}
+
