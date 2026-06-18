@@ -1,0 +1,7 @@
+{
+  "version": "1.3.74",
+  "changelog": "Build automático: Commit chore: reset app version and improve PDF layout
+
+Reset versioning to 1.3 and update PDF generator to dynamically scale fonts based on item count, preventing layout overflow on A4 pages.",
+  "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
+}
