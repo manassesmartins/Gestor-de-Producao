@@ -206,64 +206,138 @@ fun generateInvoicePdfAndShare(
         val secondaryAccent = Color.parseColor("#8E6E82")
         val dividerColor = Color.parseColor("#D4C4CD")
 
+        val itemCount = matchingOrders.size
+
+        // Dynamically compute fonts and dimensions to scale nicely onto A4 based on item count
+        // Fewer items -> Larger, more spacious layout. Many items -> Compact layout to avoid overflowing A4.
+        val headerFontSize = when {
+            itemCount <= 3 -> 24f
+            itemCount <= 6 -> 22f
+            itemCount <= 11 -> 20f
+            itemCount <= 16 -> 18f
+            else -> 16f
+        }
+        val subHeaderFontSize = when {
+            itemCount <= 3 -> 12f
+            itemCount <= 6 -> 11f
+            itemCount <= 11 -> 10f
+            itemCount <= 16 -> 9.5f
+            else -> 8.5f
+        }
+        val metadataFontSize = when {
+            itemCount <= 3 -> 13f
+            itemCount <= 6 -> 12f
+            itemCount <= 11 -> 11f
+            itemCount <= 16 -> 10f
+            else -> 9f
+        }
+        val metadataLineHeight = when {
+            itemCount <= 3 -> 24f
+            itemCount <= 6 -> 20f
+            itemCount <= 11 -> 18f
+            else -> 15f
+        }
+        val tableTitleFontSize = when {
+            itemCount <= 3 -> 14f
+            itemCount <= 6 -> 12.5f
+            itemCount <= 11 -> 11.5f
+            itemCount <= 16 -> 10.5f
+            else -> 9.5f
+        }
+        val itemTextSize = when {
+            itemCount <= 3 -> 14f
+            itemCount <= 6 -> 12f
+            itemCount <= 11 -> 10f
+            itemCount <= 16 -> 8.5f
+            else -> 7.5f
+        }
+        val detailTextSize = when {
+            itemCount <= 3 -> 12f
+            itemCount <= 6 -> 10.5f
+            itemCount <= 11 -> 9f
+            itemCount <= 16 -> 7.5f
+            else -> 6.5f
+        }
+        val itemStep1 = when {
+            itemCount <= 3 -> 22f
+            itemCount <= 6 -> 18f
+            itemCount <= 11 -> 15f
+            itemCount <= 16 -> 12f
+            else -> 10f
+        }
+        val itemStep2 = when {
+            itemCount <= 3 -> 36f
+            itemCount <= 6 -> 30f
+            itemCount <= 11 -> 25f
+            itemCount <= 16 -> 18f
+            else -> 14f
+        }
+
         // Center / Header
         paint.color = darkPlumColor
-        paint.textSize = 20f
+        paint.textSize = headerFontSize
         paint.isFakeBoldText = true
         paint.textAlign = Paint.Align.CENTER
         canvas.drawText(brandName.uppercase(Locale.getDefault()), 297.5f, 70f, paint)
 
-        paint.textSize = 10f
+        paint.textSize = subHeaderFontSize
         paint.isFakeBoldText = true
         paint.color = secondaryAccent
-        canvas.drawText("DOCUMENTO DE FECHAMENTO SEMANAL", 297.5f, 92f, paint)
+        canvas.drawText("DOCUMENTO DE FECHAMENTO SEMANAL", 297.5f, 70f + headerFontSize * 1.1f, paint)
 
+        val headerLineY = 70f + headerFontSize * 1.1f + 16f
         paint.strokeWidth = 1.5f
         paint.color = darkPlumColor
-        canvas.drawLine(40f, 108f, 555f, 108f, paint)
+        canvas.drawLine(40f, headerLineY, 555f, headerLineY, paint)
 
         // Metadata left-aligned
+        val clienteY = headerLineY + 25f
         paint.textAlign = Paint.Align.LEFT
-        paint.textSize = 11f
+        paint.textSize = metadataFontSize
         paint.isFakeBoldText = true
         paint.color = darkPlumColor
-        canvas.drawText("CLIENTE:", 50f, 135f, paint)
+        canvas.drawText("CLIENTE:", 50f, clienteY, paint)
         paint.isFakeBoldText = false
         paint.color = Color.BLACK
-        canvas.drawText(order.clientName.uppercase(Locale.getDefault()), 120f, 135f, paint)
+        canvas.drawText(order.clientName.uppercase(Locale.getDefault()), 120f, clienteY, paint)
 
+        val periodoY = clienteY + metadataLineHeight
         paint.isFakeBoldText = true
         paint.color = darkPlumColor
-        canvas.drawText("PERÍODO:", 50f, 155f, paint)
+        canvas.drawText("PERÍODO:", 50f, periodoY, paint)
         paint.isFakeBoldText = false
         paint.color = Color.BLACK
-        canvas.drawText(order.week, 120f, 155f, paint)
+        canvas.drawText(order.week, 120f, periodoY, paint)
 
+        val emissaoY = periodoY + metadataLineHeight
         paint.isFakeBoldText = true
         paint.color = darkPlumColor
-        canvas.drawText("EMISSÃO:", 50f, 175f, paint)
+        canvas.drawText("EMISSÃO:", 50f, emissaoY, paint)
         paint.isFakeBoldText = false
         paint.color = Color.BLACK
         val dateFormatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("pt", "BR"))
-        canvas.drawText(dateFormatter.format(Date(order.timestamp)), 120f, 175f, paint)
+        canvas.drawText(dateFormatter.format(Date(order.timestamp)), 120f, emissaoY, paint)
 
+        val divider2Y = emissaoY + 18f
         paint.color = dividerColor
-        canvas.drawLine(40f, 195f, 555f, 195f, paint)
+        canvas.drawLine(40f, divider2Y, 555f, divider2Y, paint)
 
         // Itemized Table Heading
-        paint.textSize = 11f
+        val tableHeadY = emissaoY + 40f
+        paint.textSize = tableTitleFontSize
         paint.isFakeBoldText = true
         paint.color = darkPlumColor
-        canvas.drawText("ESPECIFICAÇÕES DOS PRODUTOS", 50f, 220f, paint)
+        canvas.drawText("ESPECIFICAÇÕES DOS PRODUTOS", 50f, tableHeadY, paint)
         paint.textAlign = Paint.Align.RIGHT
-        canvas.drawText("TOTAL", 545f, 220f, paint)
+        canvas.drawText("TOTAL", 545f, tableHeadY, paint)
 
-        canvas.drawLine(40f, 230f, 555f, 230f, paint)
+        val divider3Y = emissaoY + 48f
+        canvas.drawLine(40f, divider3Y, 555f, divider3Y, paint)
 
         // Items logic list
-        var currentY = 255f
-        paint.textSize = 10f
+        var currentY = emissaoY + 70f
         matchingOrders.forEach { item ->
+            paint.textSize = itemTextSize
             paint.textAlign = Paint.Align.LEFT
             paint.isFakeBoldText = true
             paint.color = darkPlumColor
@@ -273,14 +347,15 @@ fun generateInvoicePdfAndShare(
             val formattedTotal = String.format(Locale("pt", "BR"), "R$ %,.2f", item.totalValue)
             canvas.drawText(formattedTotal, 545f, currentY, paint)
             
-            currentY += 15f
+            currentY += itemStep1
+            paint.textSize = detailTextSize
             paint.textAlign = Paint.Align.LEFT
             paint.isFakeBoldText = false
             paint.color = Color.DKGRAY
             canvas.drawText("=> Quantidade: ${item.quantity} un  x  R$ ${String.format(Locale("pt", "BR"), "%,.2f", item.pantyValue)}", 60f, currentY, paint)
             
             paint.color = Color.BLACK
-            currentY += 25f
+            currentY += itemStep2
         }
 
         paint.color = dividerColor
@@ -288,7 +363,7 @@ fun generateInvoicePdfAndShare(
         currentY += 25f
 
         // Grand Total row
-        paint.textSize = 12f
+        paint.textSize = tableTitleFontSize + 1f
         paint.isFakeBoldText = true
         paint.textAlign = Paint.Align.LEFT
         paint.color = darkPlumColor
