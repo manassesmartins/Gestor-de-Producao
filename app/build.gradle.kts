@@ -8,21 +8,75 @@ plugins {
   alias(libs.plugins.secrets)
 }
 
+// ── Stable signing key ──────────────────────────────────────────
+// All builds (debug & release fallback) use the same debug.keystore.
+// The base64 encoding is committed to git so every machine/clone
+// produces APKs with the identical signature → updates install
+// without "uninstall first" errors.
+// ────────────────────────────────────────────────────────────────
+
 val keystoreFile = file("${rootDir}/debug.keystore")
 val base64File = file("${rootDir}/debug.keystore.base64")
+
+// 1) If base64 artifact exists, restore the keystore from it (reproducible builds)
 if (base64File.exists()) {
   try {
-    val base64Content = base64File.readText().trim()
+    val raw = base64File.readText().trim()
       .replace("\r", "")
       .replace("\n", "")
       .replace(" ", "")
-    val decodedBytes = Base64.getDecoder().decode(base64Content)
-    keystoreFile.writeBytes(decodedBytes)
-    logger.lifecycle("Successfully forced stable debug.keystore decoding from debug.keystore.base64")
-  } catch (e: java.lang.Exception) {
-    logger.error("Error decoding debug.keystore.base64 to debug.keystore: ${e.message}", e)
+    keystoreFile.writeBytes(Base64.getDecoder().decode(raw))
+    logger.lifecycle("Restored debug.keystore from debug.keystore.base64 (stable signature)")
+  } catch (e: Exception) {
+    logger.error("Failed to decode debug.keystore.base64: ${e.message}", e)
   }
 }
+
+// 2) Auto‑generate keystore on first build (fresh checkout / no base64 yet)
+if (!keystoreFile.exists()) {
+  logger.warn("debug.keystore not found. Generating a new one (happens once)...")
+  try {
+    val proc = ProcessBuilder(
+      "keytool", "-genkey", "-v",
+      "-keystore", keystoreFile.absolutePath,
+      "-alias", "androiddebugkey",
+      "-storepass", "android",
+      "-keypass", "android",
+      "-keyalg", "RSA",
+      "-keysize", "2048",
+      "-validity", "10000",
+      "-dname", "CN=Android Debug, O=Android, C=US"
+    ).inheritIO().start()
+    check(proc.waitFor() == 0) { "keytool failed" }
+    // Immediately write the base64 counterpart for future builds
+    base64File.writeText(Base64.getEncoder().encodeToString(keystoreFile.readBytes()).chunked(64).joinToString("\n"))
+    logger.lifecycle("Generated debug.keystore + debug.keystore.base64 — commit this file to share the same key across machines")
+  } catch (e: Exception) {
+    logger.error("Could not auto‑generate debug.keystore: ${e.message}")
+    logger.error("Run manually: keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname \"CN=Android Debug, O=Android, C=US\"")
+  }
+}
+
+// ── Version from version.json (single source of truth) ───────────
+// versionCode is computed from the semantic version so it always
+// increases when versionName is bumped – no more manual increments.
+// ─────────────────────────────────────────────────────────────────
+
+val appVersion: String = try {
+  val json = file("${rootDir}/version.json")
+  if (json.exists()) {
+    "\"version\"\\s*:\\s*\"([^\"]+)\"".toRegex().find(json.readText())?.groupValues?.get(1) ?: "1.0.0"
+  } else "1.0.0"
+} catch (_: Exception) { "1.0.0" }
+
+val verParts = appVersion.split(".").map { it.toIntOrNull() ?: 0 }
+val appVersionCode = when {
+  verParts.size >= 3 -> verParts[0] * 1_000_000 + verParts[1] * 1_000 + verParts[2]
+  verParts.size == 2 -> verParts[0] * 1_000 + verParts[1]
+  else               -> verParts[0]
+}
+
+// ── Android configuration ─────────────────────────────────────
 
 android {
   namespace = "com.example"
@@ -32,16 +86,16 @@ android {
     applicationId = "com.aistudio.gestordeproducao.xqwzpt"
     minSdk = 24
     targetSdk = 36
-    versionCode = 176
-    versionName = "1.20.76"
+    versionCode = appVersionCode
+    versionName = appVersion
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   signingConfigs {
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
+      val ks = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
+      storeFile = file(ks)
       storePassword = System.getenv("STORE_PASSWORD")
       keyAlias = "upload"
       keyPassword = System.getenv("KEY_PASSWORD")
@@ -59,17 +113,12 @@ android {
       isCrunchPngs = false
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      
-      // Fallback to debug if key passwords or the release keystore are missing.
-      // This ensures that all APKs generated share the identical stable signature, preventing package conflicts on update.
-      val keystorePathEnv = System.getenv("KEYSTORE_PATH")
-      val hasKeystore = keystorePathEnv != null && file(keystorePathEnv).exists()
-      val hasPassword = !System.getenv("STORE_PASSWORD").isNullOrEmpty()
-      if (hasKeystore && hasPassword) {
-        signingConfig = signingConfigs.getByName("release")
-      } else {
-        signingConfig = signingConfigs.getByName("debug")
-      }
+
+      val ksPath = System.getenv("KEYSTORE_PATH")
+      val hasKs = ksPath != null && file(ksPath).exists()
+      val hasPwd = !System.getenv("STORE_PASSWORD").isNullOrEmpty()
+      signingConfig = if (hasKs && hasPwd) signingConfigs.getByName("release")
+                      else signingConfigs.getByName("debug")
     }
     debug {
       signingConfig = signingConfigs.getByName("debug")

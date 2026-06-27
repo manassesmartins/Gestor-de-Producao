@@ -1,10 +1,10 @@
 {
-  "version": "1.20.76",
-  "changelog": "Build automático: Commit feat: add closed month functionality
+  "version": "1.20.77",
+  "changelog": "Correção: assinatura consistente do APK para permitir atualização sem desinstalar
 
-- Integrated ClosedMonthEntity into the database schema
-- Added DAO support for tracking closed months
-- Updated repository and ViewModel to handle month locking/unlocking
-- Incremented database version to 10",
+- Adicionado versionCode automático baseado no versionName (lido do version.json)
+- debug.keystore agora é gerado automaticamente no primeiro build
+- debug.keystore.base64 commitado no repositório para garantir mesma chave de assinatura em todas as máquinas
+- A partir deste build, todas as atualizações subsequentes serão instaladas sem conflito de pacote",
   "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
 }
