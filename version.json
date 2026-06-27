@@ -1,0 +1,10 @@
+{
+  "version": "1.20.76",
+  "changelog": "Build automático: Commit feat: add closed month functionality
+
+- Integrated ClosedMonthEntity into the database schema
+- Added DAO support for tracking closed months
+- Updated repository and ViewModel to handle month locking/unlocking
+- Incremented database version to 10",
+  "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
+}
