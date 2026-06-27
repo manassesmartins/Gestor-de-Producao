@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -72,22 +74,50 @@ fun DashboardScreen(
     val brandConfig by viewModel.brandConfig.collectAsStateWithLifecycle()
     val brandName = brandConfig?.brandName ?: "Gestor de Produção"
 
+    val closedMonthsList by viewModel.allClosedMonths.collectAsStateWithLifecycle()
+    val closedMonthsSet = remember(closedMonthsList) { closedMonthsList.map { it.monthYear }.toSet() }
+
+    val currentMonthYear = remember { SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date()) }
+
+    val activeMonth = remember(closedMonthsSet) {
+        var active = currentMonthYear
+        val cal = java.util.Calendar.getInstance()
+        while (closedMonthsSet.contains(active)) {
+            try {
+                cal.time = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(active) ?: Date()
+                cal.add(java.util.Calendar.MONTH, 1)
+                active = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(cal.time)
+            } catch (e: Exception) {
+                break
+            }
+        }
+        active
+    }
+
+    var temporarilyOpenedMonth by remember { mutableStateOf<String?>(null) }
+
     // Build list of months based on orders and transactions
-    val availableMonths = remember(orders, transactions) {
-        val currentMonthYear = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date())
+    val availableMonths = remember(orders, transactions, closedMonthsSet, temporarilyOpenedMonth, activeMonth) {
         val formatsOrders = orders.map { 
             SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) 
         }
         val formatsTransactions = transactions.map {
             SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp))
         }
-        val set = (formatsOrders + formatsTransactions + currentMonthYear).distinct()
+        val set = (formatsOrders + formatsTransactions + currentMonthYear + activeMonth).distinct()
         
         // Filter out future months unless there is at least one scheduled order or transaction in them
         val currentMonthDate = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(currentMonthYear) ?: Date()
         val filteredSet = set.filter { m ->
             val mDate = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m) ?: Date()
-            if (mDate.after(currentMonthDate)) {
+            if (m == temporarilyOpenedMonth) {
+                true
+            } else if (closedMonthsSet.contains(m)) {
+                // If it is closed, do not include it in active tabs
+                false
+            } else if (m == currentMonthYear) {
+                true
+            } else if (mDate.after(currentMonthDate) && m != activeMonth) {
                 val hasOrderInMonth = orders.any { 
                     SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == m 
                 }
@@ -98,20 +128,23 @@ fun DashboardScreen(
             } else {
                 true
             }
-        }
+        }.toMutableList()
 
         // Sort chronologically
-        filteredSet.sortedWith { m1, m2 ->
+        val dateSorted = filteredSet.sortedWith { m1, m2 ->
             val d1 = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m1) ?: Date()
             val d2 = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m2) ?: Date()
             d1.compareTo(d2)
-        }
+        }.toMutableList()
+
+        dateSorted
     }
 
-    val currentMonthYear = remember { SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date()) }
     var selectedMonthTab by remember(availableMonths) { 
         mutableStateOf(
-            if (availableMonths.contains(currentMonthYear)) currentMonthYear else availableMonths.firstOrNull() ?: currentMonthYear
+            if (availableMonths.contains(activeMonth)) activeMonth
+            else if (availableMonths.contains(currentMonthYear)) currentMonthYear
+            else availableMonths.firstOrNull() ?: currentMonthYear
         ) 
     }
 
@@ -314,24 +347,25 @@ fun DashboardScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 8.dp)
                 .background(getGlassContainerColor(), RoundedCornerShape(24.dp))
-                .padding(4.dp),
+                .padding(4.dp)
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             val tabs = listOf(
                 "PAINEL" to "Painel",
                 "SEMANAL" to "Semanal",
                 "MENSAL" to "Fechamento",
+                "HISTORICO" to "Histórico",
                 "INVESTIMENTOS" to "Investimentos"
             )
             tabs.forEach { (subId, label) ->
                 val isSel = activeSubTab == subId
                 Box(
                     modifier = Modifier
-                        .weight(1f)
                         .clip(RoundedCornerShape(20.dp))
                         .background(if (isSel) Primary else Color.Transparent)
                         .clickable { activeSubTab = subId }
-                        .padding(vertical = 10.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -345,7 +379,7 @@ fun DashboardScreen(
         }
 
         // Dynamic Monthly Tabs for Dashboard filtering to avoid month-to-month data overlap
-        if (activeSubTab != "INVESTIMENTOS" && availableMonths.size > 1) {
+        if (activeSubTab != "INVESTIMENTOS" && activeSubTab != "HISTORICO" && availableMonths.size > 1) {
             ScrollableTabRow(
                 selectedTabIndex = availableMonths.indexOf(selectedMonthTab).coerceIn(0, availableMonths.size - 1),
                 containerColor = Color.Transparent,
@@ -365,10 +399,14 @@ fun DashboardScreen(
             ) {
                 availableMonths.forEach { m ->
                     val isSelected = selectedMonthTab == m
-                    val parsedDate = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m) ?: Date()
-                    val monthLabel = SimpleDateFormat("MMM/yy", Locale("pt", "BR")).format(parsedDate)
-                        .replace(".", "")
-                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("pt", "BR")) else it.toString() }
+                    val monthLabel = if (m == "Histórico Arquivado") {
+                        "Histórico"
+                    } else {
+                        val parsedDate = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m) ?: Date()
+                        SimpleDateFormat("MMM/yy", Locale("pt", "BR")).format(parsedDate)
+                            .replace(".", "")
+                            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("pt", "BR")) else it.toString() }
+                    }
                     
                     Tab(
                         selected = isSelected,
@@ -388,6 +426,16 @@ fun DashboardScreen(
         }
 
         when (activeSubTab) {
+            "HISTORICO" -> {
+                ArchivedHistoryView(
+                    viewModel = viewModel,
+                    onOpenMonth = { month ->
+                        temporarilyOpenedMonth = month
+                        selectedMonthTab = month
+                        activeSubTab = "PAINEL"
+                    }
+                )
+            }
             "PAINEL" -> {
                 LazyColumn(
                     modifier = Modifier
@@ -608,7 +656,7 @@ fun DashboardScreen(
                                     }
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = String.format(Locale("pt", "BR"), "R$ %,.0f", summary.totalInflow),
+                                        text = String.format(Locale("pt", "BR"), "R$ %,.2f", summary.totalInflow),
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = OnSurface
@@ -660,7 +708,7 @@ fun DashboardScreen(
                                     }
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = String.format(Locale("pt", "BR"), "R$ %,.0f", summary.totalOutflow),
+                                        text = String.format(Locale("pt", "BR"), "R$ %,.2f", summary.totalOutflow),
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = OnSurface
@@ -847,12 +895,206 @@ fun DashboardScreen(
             }
             "MENSAL" -> {
                 Box(modifier = Modifier.weight(1f)) {
-                    MonthlyReportsSection(transactions, orders, context, viewModel)
+                    MonthlyReportsSection(
+                        transactions = transactions, 
+                        orders = orders, 
+                        context = context, 
+                        viewModel = viewModel,
+                        onCloseMonth = { closedMonth ->
+                            if (temporarilyOpenedMonth == closedMonth) {
+                                temporarilyOpenedMonth = null
+                            }
+                            activeSubTab = "PAINEL"
+                        }
+                    )
                 }
             }
             "INVESTIMENTOS" -> {
                 Box(modifier = Modifier.weight(1f)) {
                     InvestmentsSection(viewModel, context)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ArchivedHistoryView(
+    viewModel: com.example.ui.TransactionViewModel,
+    onOpenMonth: (String) -> Unit
+) {
+    val closedMonths by viewModel.allClosedMonths.collectAsStateWithLifecycle()
+    val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val allOrders by viewModel.allOrders.collectAsStateWithLifecycle()
+    
+    val sortedClosedMonths = remember(closedMonths) {
+        closedMonths.sortedWith { cm1, cm2 ->
+            val d1 = try { SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(cm1.monthYear) } catch(e: Exception) { null }
+            val d2 = try { SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(cm2.monthYear) } catch(e: Exception) { null }
+            if (d1 != null && d2 != null) {
+                d2.compareTo(d1)
+            } else {
+                cm2.closedAt.compareTo(cm1.closedAt)
+            }
+        }
+    }
+    
+    var selectedMonth by remember { mutableStateOf<String?>(null) }
+    
+    if (selectedMonth == null) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 80.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Text(
+                    text = "Histórico Arquivado",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = OnSurface,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+            if (closedMonths.isEmpty()) {
+                item {
+                    Text("Nenhum mês fechado no momento.", color = OnSurfaceVariant)
+                }
+            } else {
+                items(sortedClosedMonths) { cm ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth().clickable { selectedMonth = cm.monthYear },
+                        colors = CardDefaults.cardColors(containerColor = getGlassContainerColor()),
+                        border = getGlassBorderStroke()
+                    ) {
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(cm.monthYear, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Primary)
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Ver", tint = Primary)
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        val monthTransactions = allTransactions.filter { 
+            SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == selectedMonth 
+        }
+        val monthOrders = allOrders.filter { 
+            SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == selectedMonth 
+        }
+        
+        val totalIn = monthOrders.sumOf { it.totalValue }
+        val totalOut = monthTransactions.filter { it.type == "OUTFLOW" }.sumOf { it.amount }
+        val balance = totalIn - totalOut
+        
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+            var showReopenDialog by remember { mutableStateOf(false) }
+
+            if (showReopenDialog) {
+                AlertDialog(
+                    onDismissRequest = { showReopenDialog = false },
+                    title = { Text("Reabrir Mês") },
+                    text = { Text("Tem certeza que deseja reabrir o mês $selectedMonth? Ele voltará para o painel principal e sairá do histórico arquivado.") },
+                    confirmButton = {
+                        TextButton(onClick = { 
+                            selectedMonth?.let { 
+                                viewModel.reopenMonth(it)
+                                onOpenMonth(it)
+                            }
+                            selectedMonth = null
+                            showReopenDialog = false
+                        }) {
+                            Text("Sim, reabrir", color = Primary)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showReopenDialog = false }) {
+                            Text("Cancelar", color = OnSurfaceVariant)
+                        }
+                    }
+                )
+            }
+
+            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { selectedMonth = null }, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar", tint = Primary)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Visão Geral: $selectedMonth", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = OnSurface)
+            }
+            
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Entradas", color = OnSurfaceVariant)
+                        Text(String.format(Locale("pt", "BR"), "R$ %,.2f", totalIn), color = Tertiary, fontWeight = FontWeight.Bold)
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Saídas", color = OnSurfaceVariant)
+                        Text(String.format(Locale("pt", "BR"), "R$ %,.2f", totalOut), color = ErrorColor, fontWeight = FontWeight.Bold)
+                    }
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Líquido", color = OnSurface, fontWeight = FontWeight.Bold)
+                        Text(String.format(Locale("pt", "BR"), "R$ %,.2f", balance), color = if (balance >= 0) Tertiary else ErrorColor, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Button(
+                onClick = { showReopenDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Reabrir Mês", color = OnPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 80.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (monthOrders.isNotEmpty()) {
+                    item { Text("Pedidos (Entradas)", fontWeight = FontWeight.Bold, color = Primary, modifier = Modifier.padding(top = 8.dp)) }
+                    items(monthOrders) { o ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E2E1E).copy(alpha = 0.6f)),
+                            border = BorderStroke(0.5.dp, Tertiary.copy(alpha = 0.3f))
+                        ) {
+                            Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(o.clientName, fontWeight = FontWeight.Bold, color = OnSurface)
+                                    Text("${o.quantity}x ${o.pantyType}", fontSize = 12.sp, color = OnSurfaceVariant)
+                                }
+                                Text(String.format(Locale("pt", "BR"), "R$ %,.2f", o.totalValue), color = Tertiary, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+                
+                if (monthTransactions.isNotEmpty()) {
+                    item { Text("Gastos (Saídas)", fontWeight = FontWeight.Bold, color = ErrorColor, modifier = Modifier.padding(top = 8.dp)) }
+                    items(monthTransactions.filter { it.type == "OUTFLOW" }) { t ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF2E1E1E).copy(alpha = 0.6f)),
+                            border = BorderStroke(0.5.dp, ErrorColor.copy(alpha = 0.3f))
+                        ) {
+                            Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(t.description, fontWeight = FontWeight.Bold, color = OnSurface)
+                                    Text(t.category, fontSize = 12.sp, color = OnSurfaceVariant)
+                                }
+                                Text(String.format(Locale("pt", "BR"), "R$ %,.2f", t.amount), color = ErrorColor, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1176,8 +1418,12 @@ fun MonthlyReportsSection(
     transactions: List<TransactionEntity>,
     orders: List<com.example.data.OrderEntity>,
     context: android.content.Context,
-    viewModel: TransactionViewModel
+    viewModel: TransactionViewModel,
+    onCloseMonth: (String) -> Unit = {}
 ) {
+    val closedMonthsList by viewModel.allClosedMonths.collectAsStateWithLifecycle()
+    val closedMonthsSet = remember(closedMonthsList) { closedMonthsList.map { it.monthYear }.toSet() }
+
     val currentMonth = remember { java.util.Calendar.getInstance().get(java.util.Calendar.MONTH) }
     val currentYearFromDevice = remember { java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) }
     var selectedMonth by remember { mutableStateOf(currentMonth) } // Default to current month from device
@@ -1427,6 +1673,54 @@ fun MonthlyReportsSection(
                         )
                     }
                 }
+            }
+        }
+
+        item {
+            var showCloseDialog by remember { mutableStateOf(false) }
+            val currentDisplayedMonth = String.format("%02d/%d", selectedMonth + 1, selectedYear)
+            
+            if (showCloseDialog) {
+                AlertDialog(
+                    onDismissRequest = { showCloseDialog = false },
+                    title = { Text("Fechar Mês") },
+                    text = { Text("Tem certeza que deseja fechar o mês $currentDisplayedMonth? Ele será arquivado no histórico e sairá do painel principal.") },
+                    confirmButton = {
+                        TextButton(onClick = { 
+                            viewModel.closeMonth(currentDisplayedMonth)
+                            onCloseMonth(currentDisplayedMonth)
+                            showCloseDialog = false
+                        }) {
+                            Text("Sim, arquivar", color = Primary)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showCloseDialog = false }) {
+                            Text("Cancelar", color = OnSurfaceVariant)
+                        }
+                    }
+                )
+            }
+            
+            val isMonthAlreadyClosed = remember(closedMonthsSet, currentDisplayedMonth) {
+                closedMonthsSet.contains(currentDisplayedMonth)
+            }
+
+            Button(
+                onClick = { if (!isMonthAlreadyClosed) showCloseDialog = true },
+                enabled = !isMonthAlreadyClosed,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Primary,
+                    disabledContainerColor = Color.White.copy(alpha = 0.12f)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = if (isMonthAlreadyClosed) "Mês Já Arquivado / Fechado" else "Fechar Mês",
+                    color = if (isMonthAlreadyClosed) OnSurfaceVariant else OnPrimary,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
 
@@ -1720,7 +2014,7 @@ fun WeeklySectionChart(
                         ) {
                             Spacer(modifier = Modifier.weight((1f - ratio).coerceAtLeast(0.01f)))
                             Text(
-                                text = String.format(Locale("pt", "BR"), "R$ %,.0f", profit),
+                                text = String.format(Locale("pt", "BR"), "R$ %,.2f", profit),
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = barColor,
@@ -1790,7 +2084,7 @@ fun WeeklySectionChart(
                     ) {
                         Spacer(modifier = Modifier.weight((1f - inflowRatio).coerceAtLeast(0.01f)))
                         Text(
-                            text = String.format(Locale("pt", "BR"), "R$ %,.0f", inflow),
+                            text = String.format(Locale("pt", "BR"), "R$ %,.2f", inflow),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
                             color = tertiary
@@ -1822,7 +2116,7 @@ fun WeeklySectionChart(
                     ) {
                         Spacer(modifier = Modifier.weight((1f - outflowRatio).coerceAtLeast(0.01f)))
                         Text(
-                            text = String.format(Locale("pt", "BR"), "R$ %,.0f", outflow),
+                            text = String.format(Locale("pt", "BR"), "R$ %,.2f", outflow),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
                             color = errorColor
@@ -1855,7 +2149,7 @@ fun WeeklySectionChart(
                     ) {
                         Spacer(modifier = Modifier.weight((1f - profitRatio).coerceAtLeast(0.01f)))
                         Text(
-                            text = String.format(Locale("pt", "BR"), "R$ %,.0f", profit),
+                            text = String.format(Locale("pt", "BR"), "R$ %,.2f", profit),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
                             color = profitColor

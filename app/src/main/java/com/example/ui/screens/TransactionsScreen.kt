@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -314,6 +315,75 @@ fun TransactionsScreen(
     val SurfaceDark = MaterialTheme.colorScheme.background
     val ErrorColor = MaterialTheme.colorScheme.error
 
+    val closedMonths by viewModel.allClosedMonths.collectAsStateWithLifecycle(emptyList())
+    val closedMonthsSet = remember(closedMonths) { closedMonths.map { it.monthYear }.toSet() }
+
+    val currentMonthYear = remember { SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date()) }
+    val activeMonth = remember(closedMonthsSet) {
+        var active = currentMonthYear
+        val cal = java.util.Calendar.getInstance()
+        while (closedMonthsSet.contains(active)) {
+            try {
+                cal.time = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(active) ?: Date()
+                cal.add(java.util.Calendar.MONTH, 1)
+                active = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(cal.time)
+            } catch (e: Exception) {
+                break
+            }
+        }
+        active
+    }
+
+    val availableMonths = remember(transactions, closedMonthsSet, activeMonth) {
+        val formats = transactions.map { 
+            SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) 
+        }
+        val set = (formats + currentMonthYear + activeMonth).distinct()
+        
+        // Filter out future months unless there is at least one transaction in them or it is the activeMonth
+        val currentMonthDate = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(currentMonthYear) ?: Date()
+        val filteredSet = set.filter { m ->
+            val mDate = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m) ?: Date()
+            if (closedMonthsSet.contains(m)) {
+                // If the month is closed, it shouldn't be visible in active tabs
+                false
+            } else if (m == currentMonthYear) {
+                true
+            } else if (mDate.after(currentMonthDate) && m != activeMonth) {
+                transactions.any { 
+                    SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == m 
+                }
+            } else {
+                true
+            }
+        }
+
+        // Sort chronologically
+        filteredSet.sortedWith { m1, m2 ->
+            val d1 = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m1) ?: Date()
+            val d2 = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m2) ?: Date()
+            d1.compareTo(d2)
+        }
+    }
+
+    var selectedMonthTab by remember(availableMonths) { 
+        mutableStateOf(
+            if (availableMonths.contains(activeMonth)) activeMonth
+            else if (availableMonths.contains(currentMonthYear)) currentMonthYear
+            else availableMonths.firstOrNull() ?: currentMonthYear
+        ) 
+    }
+
+    LaunchedEffect(selectedMonthTab) {
+        viewModel.setSelectedMonthYear(selectedMonthTab)
+    }
+
+    val filteredTransactionsForMonth = remember(transactions, selectedMonthTab) {
+        transactions.filter {
+            SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == selectedMonthTab
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -333,6 +403,50 @@ fun TransactionsScreen(
             color = OnSurfaceVariant
         )
         Spacer(modifier = Modifier.height(12.dp))
+
+        // Month Selection Tabs
+        if (availableMonths.isNotEmpty()) {
+            ScrollableTabRow(
+                selectedTabIndex = availableMonths.indexOf(selectedMonthTab).coerceIn(0, availableMonths.size - 1),
+                containerColor = Color.Transparent,
+                contentColor = Primary,
+                edgePadding = 0.dp,
+                divider = {},
+                indicator = { tabPositions ->
+                    if (tabPositions.isNotEmpty()) {
+                        val index = availableMonths.indexOf(selectedMonthTab).coerceIn(0, availableMonths.size - 1)
+                        TabRowDefaults.SecondaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[index]),
+                            color = Primary
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().testTag("transactions_months_tab_row")
+            ) {
+                availableMonths.forEach { m ->
+                    val isSelected = selectedMonthTab == m
+                    val parsedDate = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m) ?: Date()
+                    val monthLabel = SimpleDateFormat("MMM/yy", Locale("pt", "BR")).format(parsedDate)
+                        .replace(".", "")
+                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("pt", "BR")) else it.toString() }
+                    
+                    Tab(
+                        selected = isSelected,
+                        onClick = { selectedMonthTab = m },
+                        modifier = Modifier.testTag("tab_$m")
+                    ) {
+                        Text(
+                            text = monthLabel,
+                            fontSize = 13.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) Primary else OnSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp)
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
 
         // Large Horizontal Scrolling Filter Tabs
         Row(
@@ -383,7 +497,7 @@ fun TransactionsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            if (transactions.isEmpty()) {
+            if (filteredTransactionsForMonth.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
@@ -400,7 +514,7 @@ fun TransactionsScreen(
                     }
                 }
             } else {
-                val groupedByWeek = transactions.groupBy { it.week }
+                val groupedByWeek = filteredTransactionsForMonth.groupBy { it.week }
                 groupedByWeek.forEach { (weekName, weekTransactions) ->
                     item(key = "header_$weekName") {
                         Row(

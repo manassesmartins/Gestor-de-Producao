@@ -61,6 +61,8 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
 
     val context = LocalContext.current
     val orders by viewModel.allOrders.collectAsStateWithLifecycle(emptyList())
+    val closedMonths by viewModel.allClosedMonths.collectAsStateWithLifecycle(emptyList())
+    val closedMonthsSet = remember(closedMonths) { closedMonths.map { it.monthYear }.toSet() }
     val brandConfig by viewModel.brandConfig.collectAsStateWithLifecycle()
     val brandName = brandConfig?.brandName ?: "Gestor de Produção"
     val existingClients = remember(orders) { orders.map { it.clientName }.distinct().sorted() }
@@ -96,19 +98,39 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
     var showDatePickerDialog by remember { mutableStateOf(false) }
     var selectedFilterDateMillis by remember { mutableStateOf<Long?>(null) }
 
+    val currentMonthYear = remember { SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date()) }
+    val activeMonth = remember(closedMonthsSet) {
+        var active = currentMonthYear
+        val cal = java.util.Calendar.getInstance()
+        while (closedMonthsSet.contains(active)) {
+            try {
+                cal.time = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(active) ?: Date()
+                cal.add(java.util.Calendar.MONTH, 1)
+                active = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(cal.time)
+            } catch (e: Exception) {
+                break
+            }
+        }
+        active
+    }
+
     val monthYearFormatter = remember { SimpleDateFormat("MM/yyyy", Locale("pt", "BR")) }
-    val availableMonths = remember(orders) {
-        val currentMonthYear = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date())
+    val availableMonths = remember(orders, closedMonthsSet, activeMonth) {
         val formats = orders.map { 
             SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) 
         }
-        val set = (formats + currentMonthYear).distinct()
+        val set = (formats + currentMonthYear + activeMonth).distinct()
         
-        // Filter out future months unless there is at least one scheduled order in them
+        // Filter out future months unless there is at least one scheduled order in them or it is the activeMonth
         val currentMonthDate = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(currentMonthYear) ?: Date()
         val filteredSet = set.filter { m ->
             val mDate = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(m) ?: Date()
-            if (mDate.after(currentMonthDate)) {
+            if (closedMonthsSet.contains(m)) {
+                // If the month is closed, it shouldn't be visible in active tabs
+                false
+            } else if (m == currentMonthYear) {
+                true
+            } else if (mDate.after(currentMonthDate) && m != activeMonth) {
                 orders.any { 
                     SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == m 
                 }
@@ -125,11 +147,16 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
         }
     }
     
-    val currentMonthYear = remember { SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date()) }
     var selectedMonthTab by remember(availableMonths) { 
         mutableStateOf(
-            if (availableMonths.contains(currentMonthYear)) currentMonthYear else availableMonths.firstOrNull() ?: currentMonthYear
+            if (availableMonths.contains(activeMonth)) activeMonth
+            else if (availableMonths.contains(currentMonthYear)) currentMonthYear
+            else availableMonths.firstOrNull() ?: currentMonthYear
         ) 
+    }
+
+    LaunchedEffect(selectedMonthTab) {
+        viewModel.setSelectedMonthYear(selectedMonthTab)
     }
 
     LaunchedEffect(selectedFilterDateMillis) {
@@ -737,7 +764,8 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
                 viewModel.addOrder(name, model, size, qty, valUnit, week, area, status, timestamp)
                 showAddDialog = false
                 Toast.makeText(context, "Pedido agendado com sucesso!", Toast.LENGTH_SHORT).show()
-            }
+            },
+            defaultMonthYear = selectedMonthTab
         )
     }
 
@@ -799,7 +827,8 @@ fun OrderAddEditDialog(
     orders: List<com.example.data.OrderEntity>,
     viewModel: com.example.ui.TransactionViewModel,
     onDismiss: () -> Unit,
-    onSave: (String, String, String, Int, Double, String, String, String, Long) -> Unit
+    onSave: (String, String, String, Int, Double, String, String, String, Long) -> Unit,
+    defaultMonthYear: String = ""
 ) {
     val productModels by viewModel.allProductModels.collectAsStateWithLifecycle()
     val masterClients by viewModel.allClients.collectAsStateWithLifecycle()
@@ -821,8 +850,12 @@ fun OrderAddEditDialog(
     var qtyText by remember { mutableStateOf(order?.quantity?.toString() ?: "100") }
     var priceText by remember { mutableStateOf(order?.pantyValue?.toString() ?: "1.15") }
     
-    // Convert current Order timestamp to initial date or use current time
-    var selectedTimeMillis by remember { mutableStateOf(order?.timestamp ?: System.currentTimeMillis()) }
+    // Convert current Order timestamp to initial date or use defaultMonthYear / current time
+    var selectedTimeMillis by remember { 
+        mutableStateOf(
+            order?.timestamp ?: if (defaultMonthYear.isNotEmpty()) viewModel.getTimestampForMonth(defaultMonthYear) else System.currentTimeMillis()
+        ) 
+    }
     var showDatePicker by remember { mutableStateOf(false) }
     
     // Automatically calculate week string based on time

@@ -27,8 +27,8 @@ fun generatePdfAndShare(
     try {
         val pdfDocument = PdfDocument()
         val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
-        val page = pdfDocument.startPage(pageInfo)
-        val canvas = page.canvas
+        var page = pdfDocument.startPage(pageInfo)
+        var canvas = page.canvas
         val paint = Paint()
 
         // Colors
@@ -86,72 +86,99 @@ fun generatePdfAndShare(
         canvas.drawText(String.format("Volume Total Fabricado: %d peças", totalPieces), 50f, 250f, paint)
         canvas.drawText(String.format("Custo de Insumo Unitário Médio: R$ %,.2f", costPiece), 50f, 270f, paint)
 
-        // Draw Orders Table Title
-        paint.color = primaryColor
-        paint.isFakeBoldText = true
-        paint.textSize = 12f
-        canvas.drawText("Histórico Recente de Pedidos (Receitas)", 40f, 310f, paint)
+        var currentY = 310f
 
-        var currentY = 330f
-        paint.textSize = 9f
-        paint.isFakeBoldText = true
-        paint.color = primaryColor
-        canvas.drawText("Cliente", 45f, currentY, paint)
-        canvas.drawText("Especificação", 180f, currentY, paint)
-        canvas.drawText("Quant.", 340f, currentY, paint)
-        paint.textAlign = Paint.Align.RIGHT
-        canvas.drawText("Valor Total", 545f, currentY, paint)
+        val ordersByWeek = orders.groupBy { it.week }
+        val outflowsByWeek = transactions.filter { it.type == "OUTFLOW" }.groupBy { it.week }
+        val allWeeks = (ordersByWeek.keys + outflowsByWeek.keys).distinct().sorted()
 
-        paint.strokeWidth = 1f
-        paint.color = borderLight
-        canvas.drawLine(40f, currentY+5, 555f, currentY+5, paint)
-        currentY += 20f
-
-        val limitedOrders = orders.take(8)
-        paint.isFakeBoldText = false
-        paint.color = Color.BLACK
-        limitedOrders.forEach { o ->
+        allWeeks.forEach { week ->
+            val wOrders = ordersByWeek[week] ?: emptyList()
+            val wOutflows = outflowsByWeek[week] ?: emptyList()
+            
+            if (currentY > 730f) {
+                pdfDocument.finishPage(page)
+                page = pdfDocument.startPage(pageInfo)
+                canvas = page.canvas
+                currentY = 60f
+            }
+            
+            paint.color = primaryColor
+            paint.textSize = 12f
+            paint.isFakeBoldText = true
             paint.textAlign = Paint.Align.LEFT
-            canvas.drawText(o.clientName.uppercase(Locale.getDefault()).take(20), 45f, currentY, paint)
-            canvas.drawText(o.pantyType, 180f, currentY, paint)
-            canvas.drawText(o.quantity.toString() + " un", 340f, currentY, paint)
-            paint.textAlign = Paint.Align.RIGHT
-            canvas.drawText(String.format("R$ %,.2f", o.totalValue), 545f, currentY, paint)
+            canvas.drawText("Detalhes: $week", 40f, currentY, paint)
             currentY += 15f
-        }
-
-        // Draw Costs Table Title
-        currentY += 15f
-        paint.textAlign = Paint.Align.LEFT
-        paint.color = primaryColor
-        paint.isFakeBoldText = true
-        paint.textSize = 12f
-        canvas.drawText("Histórico Recente de Gastos (Saídas)", 40f, currentY, paint)
-        currentY += 20f
-
-        paint.textSize = 9f
-        paint.isFakeBoldText = true
-        canvas.drawText("Descrição", 45f, currentY, paint)
-        canvas.drawText("Categoria", 220f, currentY, paint)
-        canvas.drawText("Semana", 390f, currentY, paint)
-        paint.textAlign = Paint.Align.RIGHT
-        canvas.drawText("Preço", 545f, currentY, paint)
-
-        paint.color = borderLight
-        canvas.drawLine(40f, currentY+5, 555f, currentY+5, paint)
-        currentY += 20f
-
-        val limitTxs = transactions.filter { t -> t.type == "OUTFLOW" }.take(8)
-        paint.isFakeBoldText = false
-        paint.color = Color.BLACK
-        limitTxs.forEach { t ->
-            paint.textAlign = Paint.Align.LEFT
-            canvas.drawText(t.description.take(28), 45f, currentY, paint)
-            canvas.drawText(t.category, 220f, currentY, paint)
-            canvas.drawText(t.week, 390f, currentY, paint)
-            paint.textAlign = Paint.Align.RIGHT
-            canvas.drawText(String.format("R$ %,.2f", t.amount), 545f, currentY, paint)
-            currentY += 15f
+            
+            if (wOrders.isNotEmpty()) {
+                val boxHeight = 18f + (wOrders.size * 15f)
+                if (currentY + boxHeight > 780f) {
+                    pdfDocument.finishPage(page)
+                    page = pdfDocument.startPage(pageInfo)
+                    canvas = page.canvas
+                    currentY = 60f
+                }
+                
+                // Draw green box
+                paint.color = Color.parseColor("#E8F5E9")
+                canvas.drawRect(40f, currentY, 555f, currentY + boxHeight, paint)
+                
+                paint.color = Color.parseColor("#2E7D32")
+                paint.textSize = 10f
+                paint.isFakeBoldText = true
+                currentY += 12f
+                canvas.drawText("Pedidos Realizados (Entradas) - Total: R$ ${String.format(Locale("pt", "BR"), "%,.2f", wOrders.sumOf { it.totalValue })}", 45f, currentY, paint)
+                currentY += 15f
+                
+                paint.color = Color.BLACK
+                paint.isFakeBoldText = false
+                paint.textSize = 9f
+                wOrders.forEach { o ->
+                    canvas.drawText(o.clientName.take(20), 45f, currentY, paint)
+                    canvas.drawText("${o.quantity} un - ${o.pantyType}".take(35), 180f, currentY, paint)
+                    paint.textAlign = Paint.Align.RIGHT
+                    canvas.drawText(String.format("R$ %,.2f", o.totalValue), 545f, currentY, paint)
+                    paint.textAlign = Paint.Align.LEFT
+                    currentY += 15f
+                }
+                currentY += 5f
+            }
+            
+            if (wOutflows.isNotEmpty()) {
+                val boxHeight = 18f + (wOutflows.size * 15f)
+                if (currentY + boxHeight > 780f) {
+                    pdfDocument.finishPage(page)
+                    page = pdfDocument.startPage(pageInfo)
+                    canvas = page.canvas
+                    currentY = 60f
+                }
+                
+                // Draw red box
+                paint.color = Color.parseColor("#FFEBEE")
+                canvas.drawRect(40f, currentY, 555f, currentY + boxHeight, paint)
+                
+                paint.color = Color.parseColor("#C62828")
+                paint.textSize = 10f
+                paint.isFakeBoldText = true
+                currentY += 12f
+                canvas.drawText("Gastos (Saídas) - Total: R$ ${String.format(Locale("pt", "BR"), "%,.2f", wOutflows.sumOf { it.amount })}", 45f, currentY, paint)
+                currentY += 15f
+                
+                paint.color = Color.BLACK
+                paint.isFakeBoldText = false
+                paint.textSize = 9f
+                wOutflows.forEach { t ->
+                    canvas.drawText(t.description.take(20), 45f, currentY, paint)
+                    canvas.drawText(t.category.take(25), 180f, currentY, paint)
+                    paint.textAlign = Paint.Align.RIGHT
+                    canvas.drawText(String.format("R$ %,.2f", t.amount), 545f, currentY, paint)
+                    paint.textAlign = Paint.Align.LEFT
+                    currentY += 15f
+                }
+                currentY += 5f
+            }
+            
+            currentY += 10f
         }
 
         pdfDocument.finishPage(page)

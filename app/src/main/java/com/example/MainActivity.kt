@@ -38,7 +38,8 @@ class MainActivity : ComponentActivity() {
             database.clientDao,
             database.employeeDao,
             database.employeePaymentDao,
-            database.productModelDao
+            database.productModelDao,
+            database.closedMonthDao
         )
         val sessionManager = com.example.data.SessionManager(this)
         val factory = TransactionViewModelFactory(repository, sessionManager, applicationContext)

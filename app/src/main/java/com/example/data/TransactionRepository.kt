@@ -18,8 +18,11 @@ class TransactionRepository(
     private val clientDao: ClientDao,
     private val employeeDao: EmployeeDao,
     private val employeePaymentDao: EmployeePaymentDao,
-    private val productModelDao: ProductModelDao
+    private val productModelDao: ProductModelDao,
+    private val closedMonthDao: ClosedMonthDao
 ) {
+
+    val allClosedMonths: Flow<List<ClosedMonthEntity>> = closedMonthDao.getAllClosedMonths()
 
     val allTransactions: Flow<List<TransactionEntity>> = transactionDao.getAllTransactions()
     val allCategories: Flow<List<CategoryEntity>> = categoryDao.getAllCategories()
@@ -62,6 +65,14 @@ class TransactionRepository(
 
     suspend fun deleteProductModelById(id: Long) {
         productModelDao.deleteProductModelById(id)
+    }
+
+    suspend fun closeMonth(monthYear: String) {
+        closedMonthDao.insertClosedMonth(ClosedMonthEntity(monthYear, System.currentTimeMillis()))
+    }
+
+    suspend fun reopenMonth(monthYear: String) {
+        closedMonthDao.deleteClosedMonth(monthYear)
     }
 
     suspend fun insertInvestment(investment: InvestmentEntity): Long {

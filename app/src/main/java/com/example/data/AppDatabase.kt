@@ -19,9 +19,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ClientEntity::class,
         EmployeeEntity::class,
         EmployeePaymentEntity::class,
-        ProductModelEntity::class
+        ProductModelEntity::class,
+        ClosedMonthEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -36,10 +37,35 @@ abstract class AppDatabase : RoomDatabase() {
     abstract val employeeDao: EmployeeDao
     abstract val employeePaymentDao: EmployeePaymentDao
     abstract val productModelDao: ProductModelDao
+    abstract val closedMonthDao: ClosedMonthDao
 
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null
+
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Safe migration path for older versions
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Safe migration path for older versions
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Safe migration path for older versions
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Safe migration path for older versions
+            }
+        }
 
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -117,6 +143,20 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `closed_months` (
+                        `monthYear` TEXT NOT NULL, 
+                        `closedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`monthYear`)
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -124,7 +164,10 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ms_modaintima_database"
                 )
-                    .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                    .addMigrations(
+                        MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
+                        MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10
+                    )
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

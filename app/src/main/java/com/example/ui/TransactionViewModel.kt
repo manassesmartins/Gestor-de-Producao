@@ -650,6 +650,16 @@ class TransactionViewModel(
     val syncState: StateFlow<String> = _syncState.asStateFlow()
 
     // Expose transaction list
+    private val _selectedMonthYear = MutableStateFlow<String?>(null)
+    val selectedMonthYear: StateFlow<String?> = _selectedMonthYear.asStateFlow()
+
+    fun setSelectedMonthYear(monthYear: String) {
+        _selectedMonthYear.value = monthYear
+    }
+
+    val allClosedMonths: StateFlow<List<com.example.data.ClosedMonthEntity>> = repository.allClosedMonths
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
     val allTransactions: StateFlow<List<TransactionEntity>> = repository.allTransactions
         .stateIn(
             scope = viewModelScope,
@@ -878,18 +888,79 @@ class TransactionViewModel(
         }
     }
 
+    fun closeMonth(monthYear: String) {
+        viewModelScope.launch {
+            repository.closeMonth(monthYear)
+        }
+    }
+
+    fun reopenMonth(monthYear: String) {
+        viewModelScope.launch {
+            repository.reopenMonth(monthYear)
+        }
+    }
+
+    fun getTimestampForMonth(monthYear: String): Long {
+        try {
+            val sdf = SimpleDateFormat("MM/yyyy", Locale("pt", "BR"))
+            val date = sdf.parse(monthYear) ?: return System.currentTimeMillis()
+            val cal = java.util.Calendar.getInstance()
+            val now = java.util.Calendar.getInstance()
+            cal.time = date
+            val day = now.get(java.util.Calendar.DAY_OF_MONTH).coerceAtMost(cal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH))
+            cal.set(java.util.Calendar.DAY_OF_MONTH, day)
+            cal.set(java.util.Calendar.HOUR_OF_DAY, now.get(java.util.Calendar.HOUR_OF_DAY))
+            cal.set(java.util.Calendar.MINUTE, now.get(java.util.Calendar.MINUTE))
+            cal.set(java.util.Calendar.SECOND, now.get(java.util.Calendar.SECOND))
+            cal.set(java.util.Calendar.MILLISECOND, now.get(java.util.Calendar.MILLISECOND))
+            return cal.timeInMillis
+        } catch (e: Exception) {
+            return System.currentTimeMillis()
+        }
+    }
+
+    fun getActiveOpenMonth(closedMonthsSet: Set<String>): String {
+        val currentMonthYear = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date())
+        var activeMonth = currentMonthYear
+        val cal = java.util.Calendar.getInstance()
+        while (closedMonthsSet.contains(activeMonth)) {
+            try {
+                cal.time = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(activeMonth) ?: Date()
+                cal.add(java.util.Calendar.MONTH, 1)
+                activeMonth = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(cal.time)
+            } catch (e: Exception) {
+                break
+            }
+        }
+        return activeMonth
+    }
+
     fun addTransaction(
         description: String,
         amount: Double,
         category: String,
         type: String, // "INFLOW" or "OUTFLOW"
         dateString: String = "",
-        week: String = "1ª Semana"
+        week: String = "1ª Semana",
+        timestamp: Long? = null
     ) {
         viewModelScope.launch {
+            val closedMonthsSet = repository.allClosedMonths.first().map { it.monthYear }.toSet()
+            val currentMonthYear = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date())
+            val targetMonthYear = _selectedMonthYear.value ?: currentMonthYear
+            val finalTstamp = if (timestamp != null) {
+                timestamp
+            } else if (closedMonthsSet.contains(targetMonthYear)) {
+                val activeMonth = getActiveOpenMonth(closedMonthsSet)
+                getTimestampForMonth(activeMonth)
+            } else if (_selectedMonthYear.value != null) {
+                getTimestampForMonth(_selectedMonthYear.value!!)
+            } else {
+                System.currentTimeMillis()
+            }
             val finalDateString = if (dateString.isEmpty()) {
                 val sdf = SimpleDateFormat("dd MMM yyyy", Locale("pt", "BR"))
-                sdf.format(Date()).uppercase(Locale.getDefault())
+                sdf.format(Date(finalTstamp)).uppercase(Locale.getDefault())
             } else {
                 dateString
             }
@@ -901,7 +972,7 @@ class TransactionViewModel(
                 type = type,
                 category = category,
                 dateString = finalDateString,
-                timestamp = System.currentTimeMillis(),
+                timestamp = finalTstamp,
                 synced = _isCloudBackupEnabled.value,
                 extraText = if (type == "INFLOW") "Venda Direta" else "Despesa",
                 week = week
