@@ -18,7 +18,7 @@ plugins {
 val keystoreFile = file("${rootDir}/debug.keystore")
 val base64File = file("${rootDir}/debug.keystore.base64")
 
-// 1) If base64 artifact exists, restore the keystore from it (reproducible builds)
+// Decode base64 → keystore (pure file I/O — safe with configuration cache)
 if (base64File.exists()) {
   try {
     val raw = base64File.readText().trim()
@@ -32,10 +32,15 @@ if (base64File.exists()) {
   }
 }
 
-// 2) Auto‑generate keystore on first build (fresh checkout / no base64 yet)
-if (!keystoreFile.exists()) {
-  logger.warn("debug.keystore not found. Generating a new one (happens once)...")
-  try {
+// Task to generate keystore (runs in execution phase — compatible with configuration cache)
+// Usage: ./gradlew generateDebugKeystore
+tasks.register("generateDebugKeystore") {
+  doLast {
+    if (keystoreFile.exists()) {
+      logger.lifecycle("debug.keystore already exists — skipping generation")
+      return@doLast
+    }
+    logger.warn("Generating debug.keystore (first build)...")
     val proc = ProcessBuilder(
       "keytool", "-genkey", "-v",
       "-keystore", keystoreFile.absolutePath,
@@ -48,18 +53,23 @@ if (!keystoreFile.exists()) {
       "-dname", "CN=Android Debug, O=Android, C=US"
     ).inheritIO().start()
     check(proc.waitFor() == 0) { "keytool failed" }
-    // Immediately write the base64 counterpart for future builds
-    base64File.writeText(Base64.getEncoder().encodeToString(keystoreFile.readBytes()).chunked(64).joinToString("\n"))
-    logger.lifecycle("Generated debug.keystore + debug.keystore.base64 — commit this file to share the same key across machines")
-  } catch (e: Exception) {
-    logger.error("Could not auto‑generate debug.keystore: ${e.message}")
-    logger.error("Run manually: keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname \"CN=Android Debug, O=Android, C=US\"")
+    base64File.writeText(
+      Base64.getEncoder().encodeToString(keystoreFile.readBytes())
+        .chunked(64).joinToString("\n")
+    )
+    logger.lifecycle("Generated debug.keystore + debug.keystore.base64 — commit debug.keystore.base64 to share the signature across machines")
   }
 }
 
+// Wire keystore generation into the build pipeline
+tasks.matching { name.startsWith("assemble") || name.startsWith("compile") || name.startsWith("package") }
+  .configureEach { dependsOn("generateDebugKeystore") }
+
 // ── Version from version.json (single source of truth) ───────────
 // versionCode is computed from the semantic version so it always
-// increases when versionName is bumped – no more manual increments.
+// increases when versionName is bumped — no more manual increments.
+// The CI writes version.json before Gradle runs, so the build picks
+// the correct version without needing sed on this file.
 // ─────────────────────────────────────────────────────────────────
 
 val appVersion: String = try {
@@ -101,7 +111,7 @@ android {
       keyPassword = System.getenv("KEY_PASSWORD")
     }
     getByName("debug") {
-      storeFile = file("${rootDir}/debug.keystore")
+      storeFile = keystoreFile
       storePassword = "android"
       keyAlias = "androiddebugkey"
       keyPassword = "android"

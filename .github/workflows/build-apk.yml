@@ -40,25 +40,24 @@ jobs:
       - name: Generate Gradle Wrapper
         run: gradle wrapper --gradle-version 9.5.1
 
-      - name: Decode Stable debug.keystore for Build
+      - name: Decode or Generate Stable debug.keystore for Build
         run: |
           if [ -f debug.keystore.base64 ]; then
-            echo "Decoding stable debug.keystore from debug.keystore.base64 safely..."
+            echo "Decoding stable debug.keystore from debug.keystore.base64"
             tr -d '\r\n ' < debug.keystore.base64 | base64 -d > debug.keystore
           else
-            echo "debug.keystore.base64 not found! Generating a fallback dummy debug.keystore..."
+            echo "debug.keystore.base64 not found. Generating a new stable key..."
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+            echo "Creating debug.keystore.base64 for future builds..."
+            base64 -w 64 debug.keystore > debug.keystore.base64
           fi
 
-      - name: Update Version Name, Code and Create version.json
+      - name: Update version.json
         run: |
-          VERSION_RAW=$(grep "versionName =" app/build.gradle.kts | head -n 1 | awk -F'"' '{print $2}')
+          VERSION_RAW=$(grep '"version"' version.json | head -n 1 | awk -F'"' '{print $4}')
           VERSION_BASE=$(echo "$VERSION_RAW" | cut -d'.' -f1-2)
           VERSION_NAME="${VERSION_BASE}.${{ github.run_number }}"
-          VERSION_CODE_NEW=$((100 + ${{ github.run_number }}))
-          echo "Baking version: ${VERSION_NAME} with Code: ${VERSION_CODE_NEW} (Original: ${VERSION_RAW}, Base: ${VERSION_BASE})"
-          sed -i "s/versionName = .*/versionName = \"${VERSION_NAME}\"/g" app/build.gradle.kts
-          sed -i "s/versionCode = .*/versionCode = ${VERSION_CODE_NEW}/g" app/build.gradle.kts
+          echo "Building version: ${VERSION_NAME} (base: ${VERSION_BASE})"
           
           cat <<EOF > version.json
           {
@@ -80,5 +79,5 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app-debug.apk version.json app/build.gradle.kts
+          git add app-debug.apk version.json debug.keystore.base64
           git diff-index --quiet HEAD || (git commit -m "Auto-compile: Build APK and update version.json to match" && git push origin HEAD:${{ github.ref_name }})
