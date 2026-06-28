@@ -166,7 +166,9 @@ object LiveSyncManager {
                 try {
                     val payloadStr = String(message.payload, Charsets.UTF_8)
                     val json = JSONObject(payloadStr)
-                    handleIncomingMessage(json)
+                    scope.launch {
+                        handleIncomingMessage(json)
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error processing incoming MQTT message", e)
                 }
@@ -346,7 +348,7 @@ object LiveSyncManager {
         publishJson(payload)
     }
 
-    private fun handleIncomingMessage(json: JSONObject) {
+    private suspend fun handleIncomingMessage(json: JSONObject) {
         val type = json.optString("type", "")
         val repo = repository ?: return
         isApplyingRemoteUpdate = true
@@ -370,7 +372,7 @@ object LiveSyncManager {
         }
     }
 
-    private fun handleFullSync(json: JSONObject, repo: TransactionRepository) {
+    private suspend fun handleFullSync(json: JSONObject, repo: TransactionRepository) {
         val transactions = json.optJSONArray("transactions")
         val orders = json.optJSONArray("orders")
         val categories = json.optJSONArray("categories")
@@ -491,7 +493,7 @@ object LiveSyncManager {
         }
     }
 
-    private fun handleMutation(table: String, action: String, data: JSONObject, repo: TransactionRepository) {
+    private suspend fun handleMutation(table: String, action: String, data: JSONObject, repo: TransactionRepository) {
         try {
             when (table) {
                 "transactions" -> {
