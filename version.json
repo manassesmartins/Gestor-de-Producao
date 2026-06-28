@@ -1,5 +1,9 @@
 {
-  "version": "1.20.87",
-  "changelog": "Build automático: Commit 	modified:   app/src/main/AndroidManifest.xml",
+  "version": "1.20.88",
+  "changelog": "Build automático: Commit 	modified:   app/src/main/AndroidManifest.xml
+	modified:   app/src/main/java/com/example/data/LiveSyncManager.kt
+	modified:   patchHtml.gradle.kts
+	modified:   patch_web.js
+	modified:   web/index.html",
   "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
 }
