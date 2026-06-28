@@ -17,8 +17,10 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.security.MessageDigest
 
 sealed class UpdateStatus {
     object Idle : UpdateStatus()
@@ -27,9 +29,10 @@ sealed class UpdateStatus {
         val version: String,
         val changelog: String,
         val downloadUrl: String,
-        val type: UpdateType, // RELEASE or COMMIT or RAW
-        val itemName: String, // e.g. commit message or tag name
-        val date: String
+        val type: UpdateType,
+        val itemName: String,
+        val date: String,
+        val sha256: String = ""
     ) : UpdateStatus()
     object UpToDate : UpdateStatus()
     data class Downloading(val progress: Float, val statusText: String = "") : UpdateStatus()
@@ -53,7 +56,6 @@ class GitHubUpdater(private val context: Context) {
         .build()
 
     init {
-        // Migrate old cached values or blank values to the new default repository configurations
         val currentOwner = sharedPrefs.getString("github_owner", "")
         if (currentOwner.isNullOrBlank() || currentOwner == "ManassesMartins") {
             sharedPrefs.edit().putString("github_owner", "manassesmartins").apply()
@@ -73,7 +75,6 @@ class GitHubUpdater(private val context: Context) {
 
     private var latestCheckedSha: String = ""
 
-    // Configurable parameters with smart defaults
     var owner: String
         get() = sharedPrefs.getString("github_owner", "manassesmartins")?.takeIf { it.isNotBlank() } ?: "manassesmartins"
         set(value) {
@@ -123,21 +124,19 @@ class GitHubUpdater(private val context: Context) {
         _status.value = UpdateStatus.Idle
     }
 
-    /**
-     * Checks both GitHub releases and git commits to find if an update exists.
-     */
     suspend fun checkForUpdates(forceNotify: Boolean = false) = withContext(Dispatchers.IO) {
         _status.value = UpdateStatus.Checking
         try {
             val currentVersion = getLocalVersion()
 
-            // Step 0: Check custom version.json URL if it contains version info
             var foundCustomJsonUpdate = false
             val customJsonUrl = "https://raw.githubusercontent.com/$owner/$repo/$branch/$versionJsonPath"
             val customJsonRequest = Request.Builder()
                 .url(customJsonUrl)
                 .addHeader("User-Agent", "Mozilla/5.0")
                 .build()
+
+            var pendingSha256 = ""
 
             try {
                 client.newCall(customJsonRequest).execute().use { response ->
@@ -152,6 +151,8 @@ class GitHubUpdater(private val context: Context) {
                                 } else {
                                     "https://raw.githubusercontent.com/$owner/$repo/$branch/$apkPath"
                                 }
+
+                                pendingSha256 = "\"sha256\"\\s*:\\s*\"([^\"]+)\"".toRegex().find(bodyString)?.groupValues?.get(1)?.trim() ?: ""
 
                                 var changelog = "Nova versão disponível no repositório."
                                 val changelogKeyIndex = bodyString.indexOf("\"changelog\"")
@@ -198,7 +199,8 @@ class GitHubUpdater(private val context: Context) {
                                             downloadUrl = downloadUrl,
                                             type = UpdateType.RAW,
                                             itemName = "Atualização via JSON",
-                                            date = ""
+                                            date = "",
+                                            sha256 = pendingSha256
                                         )
                                         foundCustomJsonUpdate = true
                                     }
@@ -217,7 +219,6 @@ class GitHubUpdater(private val context: Context) {
 
             if (foundCustomJsonUpdate) return@withContext
 
-            // Step 1: Check GitHub releases first (highly structured)
             val releaseUrl = "https://api.github.com/repos/$owner/$repo/releases/latest"
             val releaseRequest = Request.Builder()
                 .url(releaseUrl)
@@ -238,7 +239,6 @@ class GitHubUpdater(private val context: Context) {
                             val changelog = releaseObj.optString("body", "Sem changelog fornecido.")
                             val publishedAt = releaseObj.optString("published_at", "").take(10)
                             
-                            // Look for any .apk asset
                             var apkDownloadUrl = ""
                             val assetsArray = releaseObj.optJSONArray("assets")
                             if (assetsArray != null) {
@@ -252,7 +252,6 @@ class GitHubUpdater(private val context: Context) {
                                 }
                             }
 
-                            // If we don't have an APK asset, we can fallback to the raw repository path
                             if (apkDownloadUrl.isEmpty()) {
                                 apkDownloadUrl = "https://raw.githubusercontent.com/$owner/$repo/$branch/$apkPath"
                             }
@@ -282,7 +281,6 @@ class GitHubUpdater(private val context: Context) {
 
             if (foundReleaseUpdate) return@withContext
 
-            // Step 2: Skip Git commit based checking entirely as requested by the user to ONLY show standard releases/version.json
             _status.value = if (forceNotify) UpdateStatus.UpToDate else UpdateStatus.Idle
         } catch (e: Exception) {
             Log.e("GitHubUpdater", "Error checking for updates", e)
@@ -294,10 +292,7 @@ class GitHubUpdater(private val context: Context) {
         }
     }
 
-    /**
-     * Downloads the APK file from the provided URL, reporting progress.
-     */
-    suspend fun downloadApk(url: String): File? = withContext(Dispatchers.IO) {
+    suspend fun downloadApk(url: String, expectedSha256: String = ""): File? = withContext(Dispatchers.IO) {
         _status.value = UpdateStatus.Downloading(0.01f, "Conectando ao servidor para baixar atualização...")
         try {
             val request = Request.Builder().url(url).build()
@@ -319,14 +314,16 @@ class GitHubUpdater(private val context: Context) {
                     cacheFile.delete()
                 }
 
-                val buffer = ByteArray(8192) // Buffered reads of 8KB for faster transfer
+                val buffer = ByteArray(8192)
                 var bytesRead: Int
                 var totalBytesRead = 0L
+                val digest = MessageDigest.getInstance("SHA-256")
 
                 body.byteStream().use { inputStream ->
                     FileOutputStream(cacheFile).use { outputStream ->
                         while (inputStream.read(buffer).also { bytesRead = it } != -1) {
                             outputStream.write(buffer, 0, bytesRead)
+                            digest.update(buffer, 0, bytesRead)
                             totalBytesRead += bytesRead
                             val downloadedMb = totalBytesRead.toDouble() / (1024.0 * 1024.0)
 
@@ -336,12 +333,20 @@ class GitHubUpdater(private val context: Context) {
                                 val statusText = String.format(java.util.Locale.US, "Baixando: %.2f MB de %.2f MB (%.0f%%)", downloadedMb, totalMb, progress * 100)
                                 _status.value = UpdateStatus.Downloading(progress.coerceIn(0.01f, 0.99f), statusText)
                             } else {
-                                // Indeterminate progress (contentLength <= 0)
                                 val statusText = String.format(java.util.Locale.US, "Baixando: %.2f MB recebidos (tamanho total não informado)", downloadedMb)
                                 _status.value = UpdateStatus.Downloading(-1f, statusText)
                             }
                         }
                         outputStream.flush()
+                    }
+                }
+
+                if (expectedSha256.isNotEmpty()) {
+                    val computedHash = digest.digest().joinToString("") { "%02x".format(it) }
+                    if (computedHash != expectedSha256.lowercase()) {
+                        cacheFile.delete()
+                        _status.value = UpdateStatus.Error("Falha na verificação de integridade: o hash do arquivo baixado não corresponde ao esperado.")
+                        return@withContext null
                     }
                 }
 
@@ -355,9 +360,6 @@ class GitHubUpdater(private val context: Context) {
         }
     }
 
-    /**
-     * Installs the downloaded APK leveraging Android's FileProvider.
-     */
     fun installApk(apkFile: File) {
         try {
             if (!apkFile.exists()) {
@@ -385,16 +387,13 @@ class GitHubUpdater(private val context: Context) {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
 
-            // For Android O and higher, verify package installs authorization
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 if (!context.packageManager.canRequestPackageInstalls()) {
-                    // Open settings directly. It's safe since Android N+ requires exact package URI
                     val settingsIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
                         data = Uri.parse("package:${context.packageName}")
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
                     context.startActivity(settingsIntent)
-                    // We also show a fallback error instructing user to authorize and click again
                     _status.value = UpdateStatus.Error("Por favor, autorize a instalação de fontes desconhecidas para este aplicativo nas configurações que foram abertas e tente novamente.")
                     return
                 }

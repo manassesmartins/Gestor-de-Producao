@@ -130,7 +130,7 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
                             Button(
                                 onClick = {
                                     scope.launch {
-                                        val downloaded = updater.downloadApk(stat.downloadUrl)
+                                        val downloaded = updater.downloadApk(stat.downloadUrl, stat.sha256)
                                         if (downloaded != null) {
                                             updater.installApk(downloaded)
                                         }
@@ -758,7 +758,7 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
                         Button(
                             onClick = {
                                 scope.launch {
-                                    val downloaded = updater.downloadApk(stat.downloadUrl)
+                                    val downloaded = updater.downloadApk(stat.downloadUrl, stat.sha256)
                                     if (downloaded != null) {
                                         updater.installApk(downloaded)
                                     }

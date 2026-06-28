@@ -253,7 +253,19 @@ class TransactionViewModel(
     private val _authSuccessMessage = MutableStateFlow<String?>(null)
     val authSuccessMessage: StateFlow<String?> = _authSuccessMessage.asStateFlow()
 
-    private fun hashPassword(password: String): String {
+    private fun hashPassword(password: String, email: String = ""): String {
+        return try {
+            val salt = email.toByteArray()
+            val spec = javax.crypto.spec.PBEKeySpec(password.toCharArray(), salt, 10000, 256)
+            val factory = javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1")
+            val hash = factory.generateSecret(spec).encoded
+            hash.joinToString("") { "%02x".format(it) }
+        } catch (e: Exception) {
+            hashPasswordLegacy(password)
+        }
+    }
+
+    private fun hashPasswordLegacy(password: String): String {
         return try {
             val digest = java.security.MessageDigest.getInstance("SHA-256")
             val bytes = digest.digest(password.toByteArray())
@@ -338,7 +350,7 @@ class TransactionViewModel(
                         com.example.data.UserEntity(
                             id = localId,
                             email = email,
-                            passwordHash = hashPassword(password)
+                            passwordHash = hashPassword(password, email)
                         )
                     )
                     sessionManager.saveSession(
@@ -376,7 +388,20 @@ class TransactionViewModel(
                 // Safe Offline Authentication against local Room cached credentials
                 val localUser = repository.getUserByEmail(email)
                 if (localUser != null) {
-                    if (localUser.passwordHash == hashPassword(password)) {
+                    val pbkdf2Hash = hashPassword(password, email)
+                    val passwordMatch = if (localUser.passwordHash == pbkdf2Hash) {
+                        true
+                    } else {
+                        // Check legacy SHA-256 hash and upgrade if needed
+                        val legacyHash = hashPasswordLegacy(password)
+                        if (localUser.passwordHash == legacyHash) {
+                            repository.insertUser(localUser.copy(passwordHash = pbkdf2Hash))
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    if (passwordMatch) {
                         sessionManager.saveSession(
                             userId = localUser.id,
                             email = email,
@@ -401,36 +426,7 @@ class TransactionViewModel(
                         _authError.value = "A senha informada está incorreta para este e-mail. Tente novamente!"
                     }
                 } else {
-                    // Create a default master account for convenience if they enter admin/admin and DB empty
-                    if (email == "admin@producao.com" && password == "admin123") {
-                        val adminId = "admin-local-uuid"
-                        repository.insertUser(
-                            com.example.data.UserEntity(
-                                id = adminId,
-                                email = email,
-                                passwordHash = hashPassword(password)
-                            )
-                        )
-                        sessionManager.saveSession(
-                            userId = adminId,
-                            email = email,
-                            authToken = null
-                        )
-                        triggerSyncSimulation()
-                        val config = repository.getBrandConfig()
-                        _brandConfig.value = config
-                        if (config != null && config.isConfigured) {
-                            sessionManager.appName = config.brandName
-                            sessionManager.colorScheme = config.colorScheme
-                            _appName.value = config.brandName
-                            _colorSchemeName.value = config.colorScheme
-                        }
-                        _authSuccessMessage.value = "Conta de Administrador local iniciada!"
-                        _isBrandLoaded.value = true
-                        _isUserLoggedIn.value = true
-                    } else {
-                        _authError.value = "Conta de usuário não encontrada. Se este é o seu primeiro acesso, clique na guia 'Cadastrar' acima para criar sua conta!"
-                    }
+                    _authError.value = "Conta de usuário não encontrada. Se este é o seu primeiro acesso, clique na guia 'Cadastrar' acima para criar sua conta!"
                 }
             } catch (e: Exception) {
                 _authError.value = "Erro de rede ou conexão: ${e.localizedMessage}"
@@ -947,14 +943,11 @@ class TransactionViewModel(
         viewModelScope.launch {
             val closedMonthsSet = repository.allClosedMonths.first().map { it.monthYear }.toSet()
             val currentMonthYear = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date())
-            val targetMonthYear = _selectedMonthYear.value ?: currentMonthYear
             val finalTstamp = if (timestamp != null) {
                 timestamp
-            } else if (closedMonthsSet.contains(targetMonthYear)) {
+            } else if (closedMonthsSet.contains(currentMonthYear)) {
                 val activeMonth = getActiveOpenMonth(closedMonthsSet)
                 getTimestampForMonth(activeMonth)
-            } else if (_selectedMonthYear.value != null) {
-                getTimestampForMonth(_selectedMonthYear.value!!)
             } else {
                 System.currentTimeMillis()
             }

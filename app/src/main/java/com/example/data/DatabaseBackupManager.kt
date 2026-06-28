@@ -47,6 +47,9 @@ object DatabaseBackupManager {
             if (bytes.isEmpty()) {
                 Log.e(TAG, "Import failed: Selected backup file is empty.")
                 false
+            } else if (!isValidSqliteHeader(bytes)) {
+                Log.e(TAG, "Import failed: File does not have a valid SQLite header.")
+                false
             } else {
                 restoreDatabase(context, bytes)
             }
@@ -54,6 +57,14 @@ object DatabaseBackupManager {
             Log.e(TAG, "Error importing local database", e)
             false
         }
+    }
+
+    private fun isValidSqliteHeader(data: ByteArray): Boolean {
+        if (data.size < 16) return false
+        // SQLite header magic bytes: "SQLite format 3\0"
+        val header = data.take(16).toByteArray()
+        val expected = byteArrayOf(0x53, 0x51, 0x4C, 0x69, 0x74, 0x65, 0x20, 0x66, 0x6F, 0x72, 0x6D, 0x61, 0x74, 0x20, 0x33, 0x00)
+        return header.contentEquals(expected)
     }
 
     // Exports standard local database after closing connection to flush all WAL frames to main database file

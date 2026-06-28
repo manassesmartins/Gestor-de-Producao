@@ -20,7 +20,7 @@ object LogoDecoder {
             val decodedString: ByteArray = Base64.decode(pureBase64, Base64.DEFAULT)
             BitmapFactory.decodeByteArray(decodedString, 0, decodedString.size)
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("LogoDecoder", "Erro ao decodificar logo", e)
             null
         }
     }

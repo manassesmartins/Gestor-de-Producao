@@ -850,10 +850,10 @@ fun OrderAddEditDialog(
     var qtyText by remember { mutableStateOf(order?.quantity?.toString() ?: "100") }
     var priceText by remember { mutableStateOf(order?.pantyValue?.toString() ?: "1.15") }
     
-    // Convert current Order timestamp to initial date or use defaultMonthYear / current time
+    // Convert current Order timestamp to initial date or use current time
     var selectedTimeMillis by remember { 
         mutableStateOf(
-            order?.timestamp ?: if (defaultMonthYear.isNotEmpty()) viewModel.getTimestampForMonth(defaultMonthYear) else System.currentTimeMillis()
+            order?.timestamp ?: System.currentTimeMillis()
         ) 
     }
     var showDatePicker by remember { mutableStateOf(false) }

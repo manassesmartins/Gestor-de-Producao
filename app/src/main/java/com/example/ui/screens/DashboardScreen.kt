@@ -318,8 +318,8 @@ fun DashboardScreen(
                             balance = summary.currentBalance,
                             inflow = summary.totalInflow,
                             outflow = summary.totalOutflow,
-                            transactions = transactions,
-                            orders = orders,
+                            transactions = filteredTransactions,
+                            orders = filteredOrders,
                             brandName = brandName
                         )
                     },

@@ -210,7 +210,7 @@ fun generatePdfAndShare(
         context.startActivity(Intent.createChooser(shareIntent, "Compartilhar Relatório"))
 
     } catch (e: Exception) {
-        e.printStackTrace()
+        android.util.Log.e("PdfGenerator", "Erro ao exportar PDF", e)
         Toast.makeText(context, "Erro ao exportar PDF: " + e.message, Toast.LENGTH_LONG).show()
     }
 }
@@ -427,7 +427,7 @@ fun generateInvoicePdfAndShare(
         context.startActivity(Intent.createChooser(shareIntent, "Enviar Comanda Semanal"))
 
     } catch (e: Exception) {
-        e.printStackTrace()
+        android.util.Log.e("PdfGenerator", "Erro ao gerar PDF da comanda", e)
         Toast.makeText(context, "Erro ao gerar PDF da comanda: " + e.message, Toast.LENGTH_LONG).show()
     }
 }
