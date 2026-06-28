@@ -32,7 +32,7 @@ object LiveSyncManager {
     private const val TAG = "LiveSyncManager"
     private const val PREFS_NAME = "ms_live_sync_prefs"
     private const val KEY_GROUP_CODE = "group_code"
-    private const val BROKER_URL = "tcp://broker.hivemq.com:1883"
+    private const val BROKER_URL = "ssl://4e359cf3052a4eec92d47310660c8207.s1.eu.hivemq.cloud:8883"
     private const val TOPIC_PREFIX = "gestor_producao/sync/"
 
     var activeGroupCode: String? = null
@@ -147,6 +147,8 @@ object LiveSyncManager {
             isCleanSession = true
             connectionTimeout = 10
             keepAliveInterval = 20
+            userName = "hivemq.webclient.1782681074830"
+            this.password = "SD!I0c?1R;,aW23Jbhfd".toCharArray()
         }
 
         client.setCallback(object : MqttCallback {
