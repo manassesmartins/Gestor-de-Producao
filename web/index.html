@@ -856,6 +856,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
 
+                <!-- MONTH TABS -->
+                <div class="flex items-center gap-1 flex-wrap justify-center mb-4" id="dash-month-tabs"></div>
+
                 <!-- SUB-TAB SELECTOR -->
                 <div class="flex bg-white/5 border border-white/10 rounded-2xl p-1 gap-1 max-w-lg mx-auto mb-6">
                     <button onclick="switchSubTab('painel')" id="subtab-painel" class="flex-1 py-1.5 text-xs font-bold text-center rounded-xl transition-all bg-primary/20 border border-primary/50 text-white shadow-sm">Painel</button>
@@ -1138,6 +1141,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
 
+                <!-- MONTH TABS -->
+                <div class="flex items-center gap-1 flex-wrap justify-center mb-4" id="tx-month-tabs"></div>
+
                 <!-- TRANSACTIONS LIST -->
                 <div class="glass-card overflow-hidden">
                     <div class="overflow-x-auto">
@@ -1175,6 +1181,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         <i class="fa-solid fa-plus mr-1.5"></i>Nova Encomenda
                     </button>
                 </div>
+
+                <!-- MONTH TABS -->
+                <div class="flex items-center gap-1 flex-wrap justify-center mb-4" id="order-month-tabs"></div>
 
                 <!-- ORDERS STATISTICS -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1391,6 +1400,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <i class="fa-solid fa-trash-can"></i> Limpar Dados Locais
                                 </button>
                             </div>
+                        </div>
+
+                        <!-- CLOSED MONTHS -->
+                        <div class="glass-card p-6 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-bold text-white uppercase tracking-wider"><i class="fa-solid fa-lock mr-1.5 text-red-400"></i>Meses Fechados</h3>
+                                <span class="text-[10px] text-purple-200/40" id="closed-months-count">0 fechados</span>
+                            </div>
+                            <div id="closed-months-history"></div>
                         </div>
 
                         <!-- HELP & TIPS -->
@@ -1654,6 +1672,190 @@ document.addEventListener('DOMContentLoaded', () => {
         // Brand Setup State
         let brandConfig = null;
         let setupSelectedColor = 'PINK';
+
+        // Month state
+        let closedMonths = new Set();
+        let selectedDashMonth = '';
+        let selectedTxMonth = '';
+        let selectedOrderMonth = '';
+
+        function getMonthYear(ts) {
+            if (!ts) return '';
+            const d = new Date(ts);
+            return (d.getMonth() + 1).toString().padStart(2, '0') + '/' + d.getFullYear();
+        }
+        function getCurrentMonthYear() {
+            const d = new Date();
+            return (d.getMonth() + 1).toString().padStart(2, '0') + '/' + d.getFullYear();
+        }
+        function formatMonthLabel(my) {
+            if (!my) return '';
+            const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            const parts = my.split('/');
+            return months[parseInt(parts[0]) - 1] + '/' + parts[1].slice(-2);
+        }
+        function getActiveOpenMonth() {
+            const current = getCurrentMonthYear();
+            if (!closedMonths.has(current)) return current;
+            const [cm, cy] = current.split('/').map(Number);
+            let m = cm, y = cy;
+            for (let i = 0; i < 12; i++) {
+                m++;
+                if (m > 12) { m = 1; y++; }
+                const next = m.toString().padStart(2, '0') + '/' + y;
+                if (!closedMonths.has(next)) return next;
+            }
+            return current;
+        }
+        function getAvailableMonths() {
+            const months = new Set();
+            transactions.forEach(t => { if (t.timestamp) months.add(getMonthYear(t.timestamp)); });
+            orders.forEach(o => { if (o.timestamp) months.add(getMonthYear(o.timestamp)); });
+            months.add(getCurrentMonthYear());
+            const active = getActiveOpenMonth();
+            if (active) months.add(active);
+            return [...months].filter(m => m && !closedMonths.has(m)).sort();
+        }
+        function loadMonthState() {
+            try {
+                const stored = JSON.parse(localStorage.getItem('ms_closed_months')) || [];
+                closedMonths = new Set(stored);
+                selectedDashMonth = localStorage.getItem('ms_selected_dash_month') || getActiveOpenMonth();
+                selectedTxMonth = localStorage.getItem('ms_selected_tx_month') || getActiveOpenMonth();
+                selectedOrderMonth = localStorage.getItem('ms_selected_order_month') || getActiveOpenMonth();
+            } catch(e) {
+                closedMonths = new Set();
+                selectedDashMonth = getActiveOpenMonth();
+                selectedTxMonth = getActiveOpenMonth();
+                selectedOrderMonth = getActiveOpenMonth();
+            }
+        }
+        function saveMonthState() {
+            localStorage.setItem('ms_closed_months', JSON.stringify([...closedMonths]));
+            localStorage.setItem('ms_selected_dash_month', selectedDashMonth);
+            localStorage.setItem('ms_selected_tx_month', selectedTxMonth);
+            localStorage.setItem('ms_selected_order_month', selectedOrderMonth);
+        }
+
+        function renderMonthTabs(containerId, selectedMonth, onChange) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+
+            const allMonths = new Set();
+            transactions.forEach(t => { if (t.timestamp) allMonths.add(getMonthYear(t.timestamp)); });
+            orders.forEach(o => { if (o.timestamp) allMonths.add(getMonthYear(o.timestamp)); });
+            const current = getCurrentMonthYear();
+            allMonths.add(current);
+            const active = getActiveOpenMonth();
+            if (active) allMonths.add(active);
+
+            const sorted = [...allMonths].filter(m => m).sort((a, b) => {
+                const [am, ay] = a.split('/').map(Number);
+                const [bm, by] = b.split('/').map(Number);
+                return (by * 12 + bm) - (ay * 12 + am);
+            });
+
+            if (sorted.length === 0) {
+                container.innerHTML = '<span class="text-xs text-purple-200/40">Nenhum mês disponível</span>';
+                return;
+            }
+
+            sorted.forEach(my => {
+                const btn = document.createElement('button');
+                const isClosed = closedMonths.has(my);
+                const isSelected = my === selectedMonth;
+
+                if (isClosed) {
+                    btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-red-500/30 bg-red-500/10 text-red-400/60 line-through';
+                    btn.title = 'Mês fechado — reabra para editar';
+                } else if (isSelected) {
+                    btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-primary/20 border border-primary/50 text-white shadow-sm';
+                } else {
+                    btn.className = 'px-3 py-1.5 rounded-xl text-xs font-medium transition-all bg-white/5 border border-white/10 text-purple-200/80 hover:bg-white/10 hover:text-white';
+                }
+
+                btn.innerText = formatMonthLabel(my);
+                btn.onclick = () => {
+                    if (isClosed) return;
+                    onChange(my);
+                };
+                container.appendChild(btn);
+            });
+
+            // Close/Reopen button
+            if (selectedMonth && !closedMonths.has(selectedMonth)) {
+                const closeBtn = document.createElement('button');
+                closeBtn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 ml-2';
+                closeBtn.title = 'Fechar mês (impede edições)';
+                closeBtn.innerHTML = '<i class="fa-solid fa-lock mr-1"></i>Fechar';
+                closeBtn.onclick = () => {
+                    if (confirm(`Fechar mês ${formatMonthLabel(selectedMonth)}? Após fechado, lançamentos deste mês não poderão ser editados pela web.`)) {
+                        closeSelectedMonth(selectedMonth);
+                        onChange(selectedMonth);
+                    }
+                };
+                container.appendChild(closeBtn);
+            } else if (selectedMonth && closedMonths.has(selectedMonth)) {
+                const reopenBtn = document.createElement('button');
+                reopenBtn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 ml-2';
+                reopenBtn.title = 'Reabrir mês';
+                reopenBtn.innerHTML = '<i class="fa-solid fa-unlock mr-1"></i>Reabrir';
+                reopenBtn.onclick = () => {
+                    if (confirm(`Reabrir mês ${formatMonthLabel(selectedMonth)}?`)) {
+                        reopenSelectedMonth(selectedMonth);
+                        onChange(selectedMonth);
+                    }
+                };
+                container.appendChild(reopenBtn);
+            }
+        }
+
+        function closeSelectedMonth(my) {
+            closedMonths.add(my);
+            saveMonthState();
+            // If the currently selected month in any tab is now closed, switch to another
+            if (closedMonths.has(selectedDashMonth)) selectedDashMonth = getActiveOpenMonth();
+            if (closedMonths.has(selectedTxMonth)) selectedTxMonth = getActiveOpenMonth();
+            if (closedMonths.has(selectedOrderMonth)) selectedOrderMonth = getActiveOpenMonth();
+            saveMonthState();
+            renderAll();
+        }
+
+        function reopenSelectedMonth(my) {
+            closedMonths.delete(my);
+            saveMonthState();
+            renderAll();
+        }
+
+        function renderClosedMonthsHistory() {
+            const container = document.getElementById('closed-months-history');
+            if (!container) return;
+            const countEl = document.getElementById('closed-months-count');
+            if (countEl) countEl.innerText = `${closedMonths.size} fechados`;
+            if (closedMonths.size === 0) countEl.innerText = '0 fechados';
+            const sorted = [...closedMonths].sort((a, b) => {
+                const [am, ay] = a.split('/').map(Number);
+                const [bm, by] = b.split('/').map(Number);
+                return (by * 12 + bm) - (ay * 12 + am);
+            });
+            if (sorted.length === 0) {
+                container.innerHTML = '<p class="text-xs text-purple-200/40 text-center py-4">Nenhum mês fechado ainda.</p>';
+                return;
+            }
+            container.innerHTML = '';
+            sorted.forEach(my => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-white/5 rounded-xl px-4 py-3 border border-white/5';
+                div.innerHTML = `
+                    <span class="text-sm font-bold text-purple-200"><i class="fa-solid fa-lock text-red-400 mr-2"></i>${formatMonthLabel(my)}</span>
+                    <button onclick="reopenSelectedMonth('${my}')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all">
+                        <i class="fa-solid fa-unlock mr-1"></i>Reabrir
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
 
         function loadBrandConfig() {
             try {
@@ -2675,23 +2877,52 @@ document.addEventListener('DOMContentLoaded', () => {
         // DYNAMIC RENDERING ENGINES
         // ==========================
         function renderAll() {
+            renderMonthTabs('dash-month-tabs', selectedDashMonth, (my) => {
+                selectedDashMonth = my;
+                saveMonthState();
+                renderAll();
+            });
+            renderMonthTabs('tx-month-tabs', selectedTxMonth, (my) => {
+                selectedTxMonth = my;
+                saveMonthState();
+                renderAll();
+            });
+            renderMonthTabs('order-month-tabs', selectedOrderMonth, (my) => {
+                selectedOrderMonth = my;
+                saveMonthState();
+                renderAll();
+            });
             renderDashboard();
             renderTransactionsList();
             renderOrdersList();
             renderCalcsList();
             renderSyncPageInfo();
+            renderClosedMonthsHistory();
+        }
+
+        function filterByMonth(items, monthYear) {
+            if (!monthYear) return items;
+            return items.filter(item => {
+                const ts = item.timestamp || item.id;
+                return ts && getMonthYear(ts) === monthYear;
+            });
         }
 
         function renderDashboard() {
+            const month = selectedDashMonth;
+
             // Compute values
             let inflowTotal = 0;
             let outflowTotal = 0;
 
-            orders.forEach(o => {
+            const filteredOrders = filterByMonth(orders, month);
+            const filteredTransactions = filterByMonth(transactions, month);
+
+            filteredOrders.forEach(o => {
                 inflowTotal += parseFloat(o.totalValue) || 0;
             });
 
-            transactions.forEach(t => {
+            filteredTransactions.forEach(t => {
                 const val = parseFloat(t.amount) || 0;
                 if (t.type === 'OUTFLOW') outflowTotal += val;
             });
@@ -2708,10 +2939,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const marginPctText = marginPctVal.toFixed(1) + '%';
             document.getElementById('dash-margin-pct').innerText = marginPctText;
 
-            const avgTicketVal = orders.length > 0 ? (inflowTotal / orders.length) : 0;
+            const avgTicketVal = filteredOrders.length > 0 ? (inflowTotal / filteredOrders.length) : 0;
             document.getElementById('dash-avg-ticket').innerText = formatCurrency(avgTicketVal);
 
-            const totalUnitsVal = orders.reduce((sum, o) => sum + (parseInt(o.quantity) || 0), 0);
+            const totalUnitsVal = filteredOrders.reduce((sum, o) => sum + (parseInt(o.quantity) || 0), 0);
             document.getElementById('dash-orders-pending').innerText = totalUnitsVal;
 
             const costPerPieceVal = totalUnitsVal > 0 ? (outflowTotal / totalUnitsVal) : 0;
@@ -2735,7 +2966,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const categoriesCostMap = {};
             let totalCosts = 0;
             
-            transactions.forEach(t => {
+            filteredTransactions.forEach(t => {
                 if (t.type === 'OUTFLOW') {
                     const price = parseFloat(t.amount) || 0;
                     categoriesCostMap[t.category] = (categoriesCostMap[t.category] || 0) + price;
@@ -2793,7 +3024,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const emptyLabel = document.getElementById('dash-txs-empty');
             recentTxsBody.innerHTML = '';
 
-            const sortedTxs = [...transactions].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 5);
+            const sortedTxs = [...filteredTransactions].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 5);
 
             if (sortedTxs.length === 0) {
                 emptyLabel.style.display = 'block';
@@ -3134,8 +3365,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const banner = document.getElementById('txs-empty-banner');
             tableBody.innerHTML = '';
 
-            // Filter transactions list (OUTFLOW only)
+            // Filter transactions list (OUTFLOW only) by selected month
             const filtered = transactions.filter(t => t.type === 'OUTFLOW')
+                .filter(t => !selectedTxMonth || getMonthYear(t.timestamp || t.id) === selectedTxMonth)
                 .sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
 
             if (filtered.length === 0) {
@@ -3177,27 +3409,32 @@ document.addEventListener('DOMContentLoaded', () => {
             const banner = document.getElementById('orders-empty-banner');
             tableBody.innerHTML = '';
 
+            const filteredOrders = selectedOrderMonth ? orders.filter(o => {
+                const ts = o.timestamp || o.id;
+                return ts && getMonthYear(ts) === selectedOrderMonth;
+            }) : orders;
+
             let totalItems = 0;
             let sumPrices = 0;
             let totalRevenue = 0;
 
-            orders.forEach(o => {
+            filteredOrders.forEach(o => {
                 totalItems += (parseInt(o.quantity) || 0);
                 sumPrices += (parseFloat(o.pantyValue) || 0);
                 totalRevenue += (parseFloat(o.totalValue) || 0);
             });
 
-            const avgPrice = orders.length > 0 ? (sumPrices / orders.length) : 0;
+            const avgPrice = filteredOrders.length > 0 ? (sumPrices / filteredOrders.length) : 0;
 
             document.getElementById('order-stat-total-items').innerText = `${totalItems.toLocaleString()} un.`;
             document.getElementById('order-stat-avg-price').innerText = formatCurrency(avgPrice);
             document.getElementById('order-stat-total-revenue').innerText = formatCurrency(totalRevenue);
 
-            if (orders.length === 0) {
+            if (filteredOrders.length === 0) {
                 banner.style.display = 'block';
             } else {
                 banner.style.display = 'none';
-                orders.forEach(o => {
+                filteredOrders.forEach(o => {
                     const tr = document.createElement('tr');
                     tr.className = "hover:bg-white/5 border-b border-white/5 transition-all text-xs";
                     tr.innerHTML = `
@@ -3339,7 +3576,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveLocalData();
                 renderCategoryList();
                 adjustCategoryOptions();
-                renderDashboard();
+                renderAll();
             }
         }
 
@@ -3365,7 +3602,7 @@ document.addEventListener('DOMContentLoaded', () => {
             resetCategoryForm();
             renderCategoryList();
             adjustCategoryOptions();
-            renderDashboard();
+            renderAll();
         }
 
         // --- TRANSACTION FORMS ---
@@ -3540,7 +3777,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 quantity,
                 pantyValue,
                 totalValue,
-                week
+                week,
+                timestamp: Date.now()
             };
 
             if (editId) {
@@ -3978,9 +4216,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // ONLOAD ACTION
         window.addEventListener('DOMContentLoaded', () => {
             loadLocalData();
+            loadMonthState();
             loadBrandConfig();
             attemptSupabaseInitialization();
             initMonthlySelectors();
+            renderAll();
             switchTab('dashboard');
         });
     </script>
