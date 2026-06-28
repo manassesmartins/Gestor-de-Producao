@@ -1066,6 +1066,198 @@ fun SettingsScreen(
             }
         }
 
+        // ESPELHAMENTO PC / WEB (MQTT) SECTION
+        item {
+            val syncState by LiveSyncManager.connectionState.collectAsState()
+            var pairingCodeInput by remember { mutableStateOf("") }
+            val isConnected = syncState is SyncConnectionState.CONNECTED
+
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "ESPELHAMENTO PC / WEB (MQTT)",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Primary,
+                    letterSpacing = 1.sp
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Conecte este aplicativo à versão web para espelhar todos os dados em tempo real. Acesse gestor-de-producao.vercel.app no seu computador.",
+                    fontSize = 12.sp,
+                    color = OnSurfaceVariant,
+                    lineHeight = 16.sp
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Divider(color = Color.White.copy(alpha = 0.05f))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Connection Status
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    val statusColor = when (syncState) {
+                        is SyncConnectionState.CONNECTED -> Color(0xFF4CAF50)
+                        is SyncConnectionState.ERROR -> ErrorColor
+                        else -> OnSurfaceVariant.copy(alpha = 0.4f)
+                    }
+                    val statusText = when (syncState) {
+                        is SyncConnectionState.CONNECTED -> "Conectado"
+                        is SyncConnectionState.DISCONNECTED -> "Desconectado"
+                        is SyncConnectionState.ERROR -> "Erro"
+                    }
+                    val statusDetail = when (val s = syncState) {
+                        is SyncConnectionState.ERROR -> s.message
+                        is SyncConnectionState.CONNECTED -> {
+                            "Código: ${LiveSyncManager.activeGroupCode ?: "---"}"
+                        }
+                        else -> ""
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(statusColor, CircleShape)
+                    )
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = statusText,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = OnSurface
+                        )
+                        if (statusDetail.isNotBlank()) {
+                            Text(
+                                text = statusDetail,
+                                fontSize = 11.sp,
+                                color = OnSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    if (isConnected) {
+                        Button(
+                            onClick = {
+                                viewModel.stopLiveSync()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = ErrorColor.copy(alpha = 0.1f),
+                                contentColor = ErrorColor
+                            ),
+                            border = BorderStroke(1.dp, ErrorColor.copy(alpha = 0.3f)),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text("Desconectar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Divider(color = Color.White.copy(alpha = 0.05f))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Pairing code input
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = pairingCodeInput,
+                        onValueChange = { pairingCodeInput = it.take(6).filter { c -> c.isDigit() } },
+                        label = { Text("Código de 6 dígitos", fontSize = 11.sp) },
+                        singleLine = true,
+                        textStyle = LocalTextStyle.current.copy(
+                            fontSize = 20.sp,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            letterSpacing = 4.sp,
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Primary,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                            focusedContainerColor = Color.Black.copy(alpha = 0.2f),
+                            unfocusedContainerColor = Color.Black.copy(alpha = 0.1f),
+                            focusedTextColor = OnSurface,
+                            unfocusedTextColor = OnSurface
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    Button(
+                        onClick = {
+                            if (pairingCodeInput.length == 6) {
+                                viewModel.startLiveSync(pairingCodeInput)
+                            } else {
+                                Toast.makeText(context, "Digite um código de 6 dígitos válido", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        enabled = pairingCodeInput.length == 6 && !isConnected,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Primary,
+                            contentColor = OnPrimary
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Text("Conectar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Generate code option
+                if (!isConnected) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                val generatedCode = (100000 + (0..899999).random()).toString()
+                                pairingCodeInput = generatedCode
+                                viewModel.startLiveSync(generatedCode)
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Wifi,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Gerar Código para o PC", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Instructions
+                Text(
+                    text = "Abra a versão web no computador. Se o site mostrar um código, digite-o acima. Se preferir, gere um código pelo celular e digite-o no site.",
+                    fontSize = 10.sp,
+                    color = OnSurfaceVariant.copy(alpha = 0.6f),
+                    lineHeight = 14.sp
+                )
+            }
+        }
+
         // VERSION & INTEGRITY SECTION
         item {
             GlassCard(modifier = Modifier.fillMaxWidth()) {
