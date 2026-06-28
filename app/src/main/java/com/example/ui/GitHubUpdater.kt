@@ -309,7 +309,9 @@ class GitHubUpdater(private val context: Context) {
                 }
 
                 val contentLength = body.contentLength()
-                val cacheFile = File(context.cacheDir, "update.apk")
+                val updatesDir = File(context.cacheDir, "updates")
+                if (!updatesDir.exists()) updatesDir.mkdirs()
+                val cacheFile = File(updatesDir, "update.apk")
                 if (cacheFile.exists()) {
                     cacheFile.delete()
                 }
