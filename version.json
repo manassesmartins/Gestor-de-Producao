@@ -1,6 +1,5 @@
 {
-  "version": "1.20.83",
-  "changelog": "Build automático: Commit 	modified:   app/src/main/java/com/example/ui/GitHubUpdater.kt
-	modified:   app/src/main/res/xml/file_paths.xml",
+  "version": "1.20.85",
+  "changelog": "Build automático: Commit 	modified:   app/src/main/java/com/example/data/LiveSyncManager.kt",
   "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
 }
