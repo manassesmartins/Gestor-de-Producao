@@ -70,7 +70,7 @@ const newAuthPanel = `
             }
 
             const clientId = "gestor-web-" + p2pPinCode + "-" + Math.floor(Math.random() * 1000);
-            mqttClient = new Paho.MQTT.Client("broker.hivemq.com", 8884, "/mqtt", clientId);
+            mqttClient = new Paho.MQTT.Client("broker.hivemq.com", 8000, "/mqtt", clientId);
 
             mqttClient.onConnectionLost = function (responseObject) {
                 if (responseObject.errorCode !== 0) {
@@ -144,6 +144,7 @@ const newAuthPanel = `
 
             const options = {
                 timeout: 3,
+                useSSL: false,
                 onSuccess: function() {
                     console.log("MQTT Connected");
                     mqttClient.subscribe("gestor_producao/sync/" + p2pPinCode, {qos: 1});
