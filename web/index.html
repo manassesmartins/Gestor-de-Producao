@@ -163,10 +163,10 @@
             color: var(--primary) !important;
         }
 
-        .light-theme-active .bg-gradient-to-r.from-primary,
-        .light-theme-active .bg-gradient-to-r.from-primary *,
-        .light-theme-active button.bg-gradient-to-r {
-            color: #FFFFFF !important;
+        .bg-gradient-to-r.from-primary,
+        .bg-gradient-to-r.from-primary *,
+        button.bg-gradient-to-r {
+            color: var(--btn-text, #FFFFFF) !important;
         }
         
         .light-theme-active .bg-green-500\/10.text-green-400 {
@@ -1993,6 +1993,11 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         }
 
+        function getLuminance(hex) {
+            const { r, g, b } = hexToRgb(hex);
+            return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        }
+
         function applyColorPalettes(color, isDark) {
             const modeName = isDark ? 'dark' : 'light';
             const palette = palettesData[color] ? palettesData[color][modeName] : generatePaletteFromHex(color, isDark);
@@ -2001,6 +2006,9 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const key in palette) {
                 root.style.setProperty(`--${key}`, palette[key]);
             }
+
+            const btnLum = getLuminance(palette['primary']);
+            root.style.setProperty('--btn-text', btnLum > 0.5 ? '#1A0A13' : '#FFFFFF');
 
             if (isDark) {
                 root.classList.remove('light-theme-active');
