@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <cache-path name="shared_apk_cache" path="update.apk" />
-    <cache-path name="shared_pdf_reports" path="Relatorio_Producao.pdf" />
+    <cache-path name="shared_pdf_reports" path="pdf/" />
     <external-cache-path name="shared_apk_ext_cache" path="update.apk" />
     <files-path name="shared_apk_files" path="update.apk" />
 </paths>

@@ -183,8 +183,9 @@ fun generatePdfAndShare(
 
         pdfDocument.finishPage(page)
 
-        // Write to cache directory to bypass FileProvider requirement securely
-        val file = File(context.cacheDir, "Relatorio_Producao.pdf")
+        val pdfDir = File(context.cacheDir, "pdf")
+        if (!pdfDir.exists()) pdfDir.mkdirs()
+        val file = File(pdfDir, "Relatorio_Producao.pdf")
         if (file.exists()) {
             file.delete()
         }
@@ -195,7 +196,6 @@ fun generatePdfAndShare(
 
         Toast.makeText(context, "PDF pronto: " + file.name, Toast.LENGTH_SHORT).show()
 
-        // Share via Intent using FileProvider to prevent crash
         val authority = "${context.packageName}.fileprovider"
         val fileUri = FileProvider.getUriForFile(context, authority, file)
 
@@ -403,7 +403,9 @@ fun generateInvoicePdfAndShare(
 
         pdfDocument.finishPage(page)
 
-        val comandaFile = File(context.cacheDir, "Comanda_${order.clientName.replace(" ", "_")}.pdf")
+        val pdfDir = File(context.cacheDir, "pdf")
+        if (!pdfDir.exists()) pdfDir.mkdirs()
+        val comandaFile = File(pdfDir, "Comanda_${order.clientName.replace(" ", "_")}.pdf")
         if (comandaFile.exists()) {
             comandaFile.delete()
         }
@@ -412,7 +414,6 @@ fun generateInvoicePdfAndShare(
         pdfDocument.close()
         stream.close()
 
-        // Native share sheet menu trigger using FileProvider to prevent secure exposed crash
         val authority = "${context.packageName}.fileprovider"
         val comandaUri = FileProvider.getUriForFile(context, authority, comandaFile)
 
