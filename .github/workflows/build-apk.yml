@@ -5,10 +5,15 @@ on:
     branches:
       - main
       - master
-    paths-ignore:
-      - '**.apk'
-      - '**.md'
-      - '.github/**'
+    paths:
+      - 'app/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'version.json'
+      - 'debug.keystore.base64'
+      - 'proguard-rules.pro'
 
 permissions:
   contents: write
