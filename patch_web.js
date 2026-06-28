@@ -112,7 +112,7 @@ const newAuthPanel = `
                         if (payload.calculations) {
                             pieceCalculations = JSON.parse(JSON.stringify(payload.calculations));
                         }
-                        if (payload.brandConfig) {
+                        if (payload.brandConfig && (!brandConfig || !brandConfig.isConfigured || payload.brandConfig.isConfigured)) {
                             brandConfig = payload.brandConfig;
                             localStorage.setItem('ms_brand_config', JSON.stringify(brandConfig));
                             applyThemeFromConfig();

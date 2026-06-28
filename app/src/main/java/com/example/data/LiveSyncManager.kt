@@ -330,6 +330,7 @@ object LiveSyncManager {
                     put("logoText", config.logoText)
                     put("logoIcon", config.logoIcon)
                     if (config.logoImage != null) put("logoImage", config.logoImage)
+                    put("isConfigured", config.isConfigured)
                     put("isDarkMode", config.isDarkMode)
                     put("fontSizeScale", config.fontSizeScale)
                 }
@@ -477,20 +478,25 @@ object LiveSyncManager {
         }
 
         if (brandConfigJson != null) {
-            try {
-                repo.insertBrandConfig(BrandConfigEntity(
-                    brandName = brandConfigJson.optString("brandName", ""),
-                    category = brandConfigJson.optString("category", "Moda Íntima"),
-                    niche = brandConfigJson.optString("niche", ""),
-                    colorScheme = brandConfigJson.optString("colorScheme", "PINK"),
-                    logoText = brandConfigJson.optString("logoText", ""),
-                    logoIcon = brandConfigJson.optString("logoIcon", "CROWN"),
-                    logoImage = brandConfigJson.optString("logoImage", null),
-                    isDarkMode = brandConfigJson.optBoolean("isDarkMode", true),
-                    fontSizeScale = brandConfigJson.optDouble("fontSizeScale", 1.0).toFloat()
-                ))
-            } catch (e: Exception) {
-                Log.w(TAG, "Error applying brandConfig", e)
+            val incomingConfigured = brandConfigJson.optBoolean("isConfigured", false)
+            val currentConfig = repo.getBrandConfig()
+            if (incomingConfigured || currentConfig == null || !currentConfig.isConfigured) {
+                try {
+                    repo.insertBrandConfig(BrandConfigEntity(
+                        brandName = brandConfigJson.optString("brandName", ""),
+                        category = brandConfigJson.optString("category", "Moda Íntima"),
+                        niche = brandConfigJson.optString("niche", ""),
+                        colorScheme = brandConfigJson.optString("colorScheme", "PINK"),
+                        logoText = brandConfigJson.optString("logoText", ""),
+                        logoIcon = brandConfigJson.optString("logoIcon", "CROWN"),
+                        logoImage = brandConfigJson.optString("logoImage", null),
+                        isConfigured = incomingConfigured,
+                        isDarkMode = brandConfigJson.optBoolean("isDarkMode", true),
+                        fontSizeScale = brandConfigJson.optDouble("fontSizeScale", 1.0).toFloat()
+                    ))
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error applying brandConfig", e)
+                }
             }
         }
     }

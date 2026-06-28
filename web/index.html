@@ -552,7 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 function handleFullSync(payload) {
-                    if (payload.brandConfig) {
+                    if (payload.brandConfig && (!brandConfig || !brandConfig.isConfigured || payload.brandConfig.isConfigured)) {
                         applyBrandConfig(payload.brandConfig);
                     }
                     if (payload.transactions) {

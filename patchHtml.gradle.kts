@@ -139,7 +139,7 @@ tasks.register("patchWeb") {
                                 
                                 if(statusBox) statusBox.classList.add('hidden');
                                 
-                                if (payload.brandConfig) {
+                                if (payload.brandConfig && (!brandConfig || !brandConfig.isConfigured || payload.brandConfig.isConfigured)) {
                                     applyBrandConfig(payload.brandConfig);
                                 }
                                 
