@@ -1145,28 +1145,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="flex items-center gap-1 flex-wrap justify-center mb-4" id="tx-month-tabs"></div>
 
                 <!-- TRANSACTIONS LIST -->
-                <div class="glass-card overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm text-purple-200/80">
-                            <thead>
-                                <tr class="border-b border-white/10 text-[11px] uppercase tracking-wider font-bold text-purple-200/50 bg-white/5">
-                                    <th class="p-4">Semana</th>
-                                    <th class="p-4">Descrição</th>
-                                    <th class="p-4">Categoria</th>
-                                    <th class="p-4">Notas Extras</th>
-                                    <th class="p-4 text-right">Valor</th>
-                                    <th class="p-4 text-center">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="txs-table-body" class="divide-y divide-white/5">
-                                <!-- Populated in JS -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <div id="txs-empty-banner" class="text-center py-12 text-sm text-purple-200/40" style="display: none;">
-                        <i class="fa-solid fa-table-list text-4xl mb-3 block text-purple-200/20"></i>
-                        Sem lançamentos nesta categoria de filtros.
-                    </div>
+                <div id="txs-weekly-container" class="space-y-6">
+                </div>
+                <div id="txs-empty-banner" class="text-center py-12 text-sm text-purple-200/40" style="display: none;">
+                    <i class="fa-solid fa-receipt text-4xl mb-3 block text-purple-200/20"></i>
+                    Sem lançamentos de custos neste mês.
                 </div>
             </section>
 
@@ -1202,30 +1185,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
 
                 <!-- ORDERS LIST -->
-                <div class="glass-card overflow-hidden">
-                    <div class="overflow-x-auto overflow-y-visible">
-                        <table class="w-full text-left text-sm text-purple-200/80 table-auto">
-                            <thead>
-                                <tr class="border-b border-white/10 text-[11px] uppercase tracking-wider font-bold text-purple-200/50 bg-white/5">
-                                    <th class="p-4">Cliente</th>
-                                    <th class="p-4">Modelo</th>
-                                    <th class="p-4">Tamanho</th>
-                                    <th class="p-4 text-center">Qtde.</th>
-                                    <th class="p-4 text-right">Preço Un.</th>
-                                    <th class="p-4 text-right">Preço Total</th>
-                                    <th class="p-4">Semana</th>
-                                    <th class="p-4 text-center">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="orders-table-body" class="divide-y divide-white/5">
-                                <!-- Populated in JS -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <div id="orders-empty-banner" class="text-center py-12 text-sm text-purple-200/40" style="display: none;">
-                        <i class="fa-solid fa-boxes-packing text-4xl mb-3 block text-purple-200/20"></i>
-                        Sem encomendas catalogadas ainda neste mês.
-                    </div>
+                <div id="orders-weekly-container" class="space-y-4">
+                </div>
+                <div id="orders-empty-banner" class="text-center py-12 text-sm text-purple-200/40" style="display: none;">
+                    <i class="fa-solid fa-boxes-packing text-4xl mb-3 block text-purple-200/20"></i>
+                    Sem encomendas neste mês.
                 </div>
             </section>
 
@@ -3361,55 +3325,103 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function renderTransactionsList() {
-            const tableBody = document.getElementById('txs-table-body');
+            const container = document.getElementById('txs-weekly-container');
             const banner = document.getElementById('txs-empty-banner');
-            tableBody.innerHTML = '';
+            if (!container) return;
+            container.innerHTML = '';
 
-            // Filter transactions list (OUTFLOW only) by selected month
             const filtered = transactions.filter(t => t.type === 'OUTFLOW')
                 .filter(t => !selectedTxMonth || getMonthYear(t.timestamp || t.id) === selectedTxMonth)
                 .sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
 
             if (filtered.length === 0) {
                 if (banner) banner.style.display = 'block';
-            } else {
-                if (banner) banner.style.display = 'none';
-                filtered.forEach(t => {
-                    const tr = document.createElement('tr');
-                    tr.className = "hover:bg-white/5 border-b border-white/5 transition-all text-xs";
-                    
-                    const sign = '-';
-                    const colorSignClass = 'text-red-400';
-
-                    tr.innerHTML = `
-                        <td class="p-4 font-semibold text-white">${t.week || '1ª Semana'}</td>
-                        <td class="p-4">
-                            <p class="font-bold text-white text-sm">${t.description}</p>
-                            <span class="text-[10px] text-purple-200/40">${t.dateString || ''}</span>
-                        </td>
-                        <td class="p-4">
-                            <span class="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-purple-200 font-semibold uppercase text-[9px] font-mono">${t.category}</span>
-                        </td>
-                        <td class="p-4 italic text-purple-200/60">${t.extraText || '-'}</td>
-                        <td class="p-4 text-right font-mono ${colorSignClass} text-[13px]">${sign} ${formatCurrency(t.amount)}</td>
-                        <td class="p-4 text-center">
-                            <div class="flex items-center justify-center gap-2">
-                                <button onclick="openTransactionModal(${t.id})" class="p-1.5 hover:text-primary transition-colors text-purple-200/40" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
-                                <button onclick="deleteTransaction(${t.id})" class="p-1.5 hover:text-red-400 transition-colors text-purple-200/40" title="Excluir"><i class="fa-solid fa-trash-can"></i></button>
-                            </div>
-                        </td>
-                    `;
-                    tableBody.appendChild(tr);
-                });
+                return;
             }
+            if (banner) banner.style.display = 'none';
+
+            const weekOrder = ['1ª Semana', '2ª Semana', '3ª Semana', '4ª Semana', '5ª Semana'];
+            const grouped = {};
+            filtered.forEach(t => {
+                const w = t.week || '1ª Semana';
+                if (!grouped[w]) grouped[w] = { items: [], total: 0 };
+                grouped[w].items.push(t);
+                grouped[w].total += parseFloat(t.amount) || 0;
+            });
+
+            const sortedWeeks = Object.keys(grouped).sort((a, b) => weekOrder.indexOf(a) - weekOrder.indexOf(b));
+
+            sortedWeeks.forEach(week => {
+                const group = grouped[week];
+
+                const section = document.createElement('div');
+
+                const header = document.createElement('div');
+                header.className = 'flex items-center gap-2 mb-2';
+                header.innerHTML = `
+                    <i class="fa-solid fa-calendar-week text-primary text-xs"></i>
+                    <span class="text-sm font-bold text-white">${week}</span>
+                    <span class="text-xs text-purple-200/40">— ${group.items.length} lançamento${group.items.length !== 1 ? 's' : ''} · Total: ${formatCurrency(group.total)}</span>
+                `;
+                section.appendChild(header);
+
+                const card = document.createElement('div');
+                card.className = 'glass-card divide-y divide-white/5 overflow-hidden';
+
+                group.items.forEach((t, idx) => {
+                    const row = document.createElement('div');
+                    row.className = 'p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 hover:bg-white/5 transition-colors';
+
+                    const categoryColors = {
+                        'Funcionários': 'bg-red-500/15 text-red-400',
+                        'Pano': 'bg-blue-500/15 text-blue-400',
+                        'Viés': 'bg-cyan-500/15 text-cyan-400',
+                        'Linha': 'bg-emerald-500/15 text-emerald-400',
+                        'Etiqueta de composição': 'bg-amber-500/15 text-amber-400',
+                        'Etiqueta lateral': 'bg-amber-500/15 text-amber-400',
+                        'Forro': 'bg-purple-500/15 text-purple-400',
+                        'Manutenção': 'bg-orange-500/15 text-orange-400',
+                        'Variados': 'bg-stone-500/15 text-stone-400',
+                    };
+                    const catClass = categoryColors[t.category] || 'bg-white/10 text-purple-200';
+
+                    row.innerHTML = `
+                        <div class="flex items-center gap-3 flex-1 min-w-0">
+                            <div class="w-9 h-9 rounded-lg ${catClass} flex items-center justify-center flex-shrink-0 text-sm">
+                                <i class="fa-solid fa-store"></i>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="font-bold text-white text-sm truncate">${t.description}</p>
+                                <div class="flex items-center gap-2 text-[10px] text-purple-200/40 flex-wrap">
+                                    <span>${t.dateString || ''}</span>
+                                    ${t.extraText ? `<span class="text-purple-200/30">·</span><span>${t.extraText}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 sm:gap-4 sm:flex-shrink-0">
+                            <span class="px-2 py-0.5 rounded text-[9px] font-semibold uppercase font-mono ${catClass}">${t.category}</span>
+                            <span class="font-mono font-bold text-red-400 text-sm whitespace-nowrap">- ${formatCurrency(t.amount)}</span>
+                            <div class="flex items-center gap-1">
+                                <button onclick="openTransactionModal(${t.id})" class="p-1.5 hover:text-primary transition-colors text-purple-200/40 text-xs" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
+                                <button onclick="deleteTransaction(${t.id})" class="p-1.5 hover:text-red-400 transition-colors text-purple-200/40 text-xs" title="Excluir"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                        </div>
+                    `;
+                    card.appendChild(row);
+                });
+
+                section.appendChild(card);
+                container.appendChild(section);
+            });
         }
 
         function renderOrdersList() {
-            const tableBody = document.getElementById('orders-table-body');
+            const container = document.getElementById('orders-weekly-container');
             const banner = document.getElementById('orders-empty-banner');
-            tableBody.innerHTML = '';
+            if (!container) return;
+            container.innerHTML = '';
 
-            const filteredOrders = selectedOrderMonth ? orders.filter(o => {
+            const filtered = selectedOrderMonth ? orders.filter(o => {
                 const ts = o.timestamp || o.id;
                 return ts && getMonthYear(ts) === selectedOrderMonth;
             }) : orders;
@@ -3418,43 +3430,98 @@ document.addEventListener('DOMContentLoaded', () => {
             let sumPrices = 0;
             let totalRevenue = 0;
 
-            filteredOrders.forEach(o => {
+            filtered.forEach(o => {
                 totalItems += (parseInt(o.quantity) || 0);
                 sumPrices += (parseFloat(o.pantyValue) || 0);
                 totalRevenue += (parseFloat(o.totalValue) || 0);
             });
 
-            const avgPrice = filteredOrders.length > 0 ? (sumPrices / filteredOrders.length) : 0;
+            const avgPrice = filtered.length > 0 ? (sumPrices / filtered.length) : 0;
 
             document.getElementById('order-stat-total-items').innerText = `${totalItems.toLocaleString()} un.`;
             document.getElementById('order-stat-avg-price').innerText = formatCurrency(avgPrice);
             document.getElementById('order-stat-total-revenue').innerText = formatCurrency(totalRevenue);
 
-            if (filteredOrders.length === 0) {
+            if (filtered.length === 0) {
                 banner.style.display = 'block';
-            } else {
-                banner.style.display = 'none';
-                filteredOrders.forEach(o => {
-                    const tr = document.createElement('tr');
-                    tr.className = "hover:bg-white/5 border-b border-white/5 transition-all text-xs";
-                    tr.innerHTML = `
-                        <td class="p-4 font-bold text-white text-sm">${o.clientName}</td>
-                        <td class="p-4 text-purple-200/80 font-medium">${o.pantyType}</td>
-                        <td class="p-4 text-center"><span class="px-2 py-0.5 rounded bg-primary/20 border border-primary/30 text-primary text-[10px] font-bold font-mono">${o.pantySize}</span></td>
-                        <td class="p-4 text-center font-mono font-bold">${o.quantity}</td>
-                        <td class="p-4 text-right font-mono">${formatCurrency(o.pantyValue)}</td>
-                        <td class="p-4 text-right font-mono font-bold text-green-400">${formatCurrency(o.totalValue)}</td>
-                        <td class="p-4 text-purple-200/60">${o.week}</td>
-                        <td class="p-4 text-center">
-                            <div class="flex items-center justify-center gap-2">
-                                <button onclick="openOrderModal(${o.id})" class="p-1.5 hover:text-primary transition-colors text-purple-200/40" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
-                                <button onclick="deleteOrder(${o.id})" class="p-1.5 hover:text-red-400 transition-colors text-purple-200/40" title="Excluir"><i class="fa-solid fa-trash-can"></i></button>
-                            </div>
-                        </td>
-                    `;
-                    tableBody.appendChild(tr);
-                });
+                return;
             }
+            banner.style.display = 'none';
+
+            // Group by client+week like Android
+            const grouped = {};
+            filtered.forEach(o => {
+                const key = (o.clientName || 'Sem nome').toLowerCase() + '|' + (o.week || '1ª Semana');
+                if (!grouped[key]) grouped[key] = { clientName: o.clientName || 'Sem nome', week: o.week || '1ª Semana', items: [] };
+                grouped[key].items.push(o);
+            });
+
+            Object.values(grouped).forEach(group => {
+                const card = document.createElement('div');
+                card.className = 'glass-card p-4 sm:p-5 space-y-3';
+
+                let groupTotalQty = 0;
+                let groupTotalValue = 0;
+                group.items.forEach(o => {
+                    groupTotalQty += parseInt(o.quantity) || 0;
+                    groupTotalValue += parseFloat(o.totalValue) || 0;
+                });
+
+                // Header
+                const header = document.createElement('div');
+                header.className = 'flex items-start justify-between gap-2';
+                header.innerHTML = `
+                    <div>
+                        <h4 class="text-sm font-bold text-white uppercase">${hsc(group.clientName)}</h4>
+                        <span class="text-[10px] text-purple-200/40">${group.items.length} ${group.items.length === 1 ? 'item' : 'itens'} neste pedido</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded bg-primary/20 border border-primary/30 text-primary text-[10px] font-bold whitespace-nowrap">${group.week}</span>
+                `;
+                card.appendChild(header);
+                card.appendChild(document.createElement('hr')).className = 'border-white/5';
+
+                // Order items
+                group.items.forEach(o => {
+                    const row = document.createElement('div');
+                    row.className = 'flex items-center justify-between gap-3 py-1.5';
+                    row.innerHTML = `
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-white truncate">${o.pantyType} — TAM ${o.pantySize}</p>
+                            <span class="text-[10px] text-purple-200/40">Qtd: ${o.quantity} | ${formatCurrency(o.pantyValue)} un.</span>
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <span class="font-mono font-bold text-green-400 text-sm">${formatCurrency(o.totalValue)}</span>
+                            <button onclick="openOrderModal(${o.id})" class="p-1 hover:text-primary transition-colors text-purple-200/40 text-xs" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteOrder(${o.id})" class="p-1 hover:text-red-400 transition-colors text-purple-200/40 text-xs" title="Excluir"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                    `;
+                    card.appendChild(row);
+                });
+
+                card.appendChild(document.createElement('hr')).className = 'border-white/5';
+
+                // Footer
+                const footer = document.createElement('div');
+                footer.className = 'flex items-center justify-between text-xs pt-1';
+                footer.innerHTML = `
+                    <div>
+                        <span class="text-purple-200/60">QUANTIDADE TOTAL</span>
+                        <p class="font-bold text-white text-sm">${groupTotalQty} unidades</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-purple-200/60">TOTAL GERAL</span>
+                        <p class="font-bold text-green-400 text-base">${formatCurrency(groupTotalValue)}</p>
+                    </div>
+                `;
+                card.appendChild(footer);
+
+                container.appendChild(card);
+            });
+        }
+
+        function hsc(str) {
+            if (!str) return str;
+            return str.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
         }
 
         function renderCalcsList() {
