@@ -1,7 +1,5 @@
 {
-  "version": "1.20.78",
-  "changelog": "Build automático: Commit 	modified:   .github/workflows/build-apk.yml
-	modified:   app/build.gradle.kts",
-  "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk",
-  "sha256": ""
+  "version": "1.20.81",
+  "changelog": "Build automático: Commit 	modified:   build.gradle.kts",
+  "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
 }
