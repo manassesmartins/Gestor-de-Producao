@@ -262,6 +262,9 @@
                                 <p class="text-[10px] text-purple-200/50 mb-2 uppercase tracking-wide">Ou Escaneie o QR Code</p>
                                 <div id="qrcode-container" class="p-2 bg-white rounded-xl shadow-lg"></div>
                             </div>
+                            <button onclick="startListening()" id="btn-start-listening" class="w-full py-3 rounded-xl font-bold text-sm text-white transition-all hover:brightness-110" style="background: var(--primary);">
+                                <i class="fa-solid fa-ear-listen mr-2"></i>Conectar e Aguardar
+                            </button>
                         </div>
 
                         <!-- Enter Code Mode -->
@@ -285,9 +288,9 @@
                         <div id="auth-success-box" class="hidden w-full p-3 rounded-xl bg-green-500/10 border border-green-500/30 text-xs text-green-400 text-center"></div>
 
                         <!-- Connect status -->
-                        <div class="pt-2 flex flex-col items-center" id="connection-status-box">
+                        <div class="pt-2 flex flex-col items-center" id="connection-status-box" style="display: none;">
                             <div id="connection-status-spinner" class="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin mb-3" style="border-color: var(--primary); border-top-color: transparent"></div>
-                            <span id="connection-status-text" class="text-xs font-semibold" style="color: var(--primary)">Aguardando aplicativo Android conectar...</span>
+                            <span id="connection-status-text" class="text-xs font-semibold" style="color: var(--primary)"></span>
                         </div>
 
                         <!-- OR divider -->
@@ -372,8 +375,6 @@ document.addEventListener('DOMContentLoaded', () => {
             correctLevel : QRCode.CorrectLevel.M
         });
     }
-
-    initP2PMQTT();
 });
 
     function initP2PMQTT() {
@@ -399,6 +400,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     mqttClient = new Paho.MQTT.Client("4e359cf3052a4eec92d47310660c8207.s1.eu.hivemq.cloud", 8884, "/mqtt", clientId);
 
                     mqttClient.onConnectionLost = function (responseObject) {
+                        const statusText = document.getElementById('connection-status-text');
+                        if (statusText) statusText.innerText = 'Conexão perdida. Reconectando...';
                         setTimeout(initP2PMQTT, 3000); // Reconnect
                     };
 
@@ -483,14 +486,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         userName: "hivemq.webclient.1782681074830",
                         password: "SD!I0c?1R;,aW23Jbhfd",
                         onSuccess: function() {
-                            document.getElementById('connection-status-text').innerText = 'Conectado ao broker MQTT. Aguardando dados...';
+                            document.getElementById('connection-status-text').innerText = 'Conectado. Aguardando dados do celular...';
                             document.getElementById('connection-status-spinner').style.borderTopColor = 'transparent';
                             mqttClient.subscribe("gestor_producao/sync/" + p2pPinCode, {qos: 1});
-                            updateSyncBadge(true);
-                            setTimeout(publishFullSync, 1000);
                         },
                         onFailure: function(message) {
-                            document.getElementById('connection-status-text').innerText = 'Falha na conexão. Tentando novamente...';
+                            document.getElementById('connection-status-text').innerText = 'Falha na conexão. Tentando novamente em 4s...';
                             setTimeout(initP2PMQTT, 4000);
                         }
                     };
@@ -498,6 +499,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     try {
                         mqttClient.connect(options);
                     } catch(e) {}
+                }
+
+                function startListening() {
+                    // Clear old data before establishing new connection
+                    transactions = [];
+                    orders = [];
+                    pieceCalculations = [];
+                    categories = [...defaultCategories];
+                    user = null;
+                    localStorage.removeItem('ms_transactions');
+                    localStorage.removeItem('ms_orders');
+                    localStorage.removeItem('ms_calcs');
+                    localStorage.removeItem('ms_categories');
+                    localStorage.removeItem('ms_user');
+                    localStorage.removeItem('ms_clients');
+                    localStorage.removeItem('ms_models');
+                    document.getElementById('connection-status-box').style.display = 'flex';
+                    document.getElementById('connection-status-text').innerText = 'Conectando ao broker MQTT...';
+                    document.getElementById('connection-status-spinner').style.borderTopColor = 'transparent';
+                    document.getElementById('btn-start-listening').disabled = true;
+                    document.getElementById('btn-start-listening').style.opacity = '0.5';
+                    document.getElementById('btn-start-listening').innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Aguardando...';
+                    initP2PMQTT();
                 }
 
                 function switchAuthMode(mode) {
@@ -532,6 +556,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     p2pPinCode = pin;
                     const elm = document.getElementById('new-auth-pin');
                     if (elm) elm.innerText = p2pPinCode;
+                    // Clear old data before establishing new connection
+                    transactions = [];
+                    orders = [];
+                    pieceCalculations = [];
+                    categories = [...defaultCategories];
+                    user = null;
+                    localStorage.removeItem('ms_transactions');
+                    localStorage.removeItem('ms_orders');
+                    localStorage.removeItem('ms_calcs');
+                    localStorage.removeItem('ms_categories');
+                    localStorage.removeItem('ms_user');
+                    localStorage.removeItem('ms_clients');
+                    localStorage.removeItem('ms_models');
+                    document.getElementById('connection-status-box').style.display = 'flex';
+                    document.getElementById('connection-status-text').innerText = 'Conectando ao broker MQTT...';
+                    document.getElementById('connection-status-spinner').style.borderTopColor = 'transparent';
                     initP2PMQTT();
                 }
 
