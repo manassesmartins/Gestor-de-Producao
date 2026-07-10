@@ -1,5 +1,7 @@
 {
-  "version": "1.20.90",
-  "changelog": "Build automático: Commit fix: 16 bugs - filtros, sync, undo, clearAll, migrations",
+  "version": "1.20.91",
+  "changelog": "Build automático: Commit 	modified:   app/src/main/java/com/example/ui/screens/OrdersScreen.kt
+	modified:   app/src/main/java/com/example/ui/utils/PdfGenerator.kt
+	modified:   app/src/main/res/xml/file_paths.xml",
   "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
 }
