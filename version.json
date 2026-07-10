@@ -1,8 +1,5 @@
 {
-  "version": "1.20.89",
-  "changelog": "Build automático: Commit 	modified:   app/src/main/java/com/example/data/LiveSyncManager.kt
-	modified:   patchHtml.gradle.kts
-	modified:   patch_web.js
-	modified:   web/index.html",
+  "version": "1.20.90",
+  "changelog": "Build automático: Commit fix: 16 bugs - filtros, sync, undo, clearAll, migrations",
   "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
 }
