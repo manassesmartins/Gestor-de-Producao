@@ -1215,9 +1215,11 @@ fun OrderInvoiceDialog(
     val OnPrimary = MaterialTheme.colorScheme.onPrimary
     
     val matchingOrders = remember(order, allOrders) {
+        val orderMonthYear = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(order.timestamp))
         allOrders.filter { 
             it.clientName.trim().equals(order.clientName.trim(), ignoreCase = true) && 
-            it.week == order.week 
+            it.week == order.week &&
+            SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == orderMonthYear
         }
     }
     
@@ -1359,25 +1361,49 @@ fun OrderInvoiceDialog(
             }
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    com.example.ui.utils.generateInvoicePdfAndShare(
-                        context = context,
-                        order = order,
-                        matchingOrders = matchingOrders,
-                        brandName = brandName
-                    )
-                    onDismiss()
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = OnPrimary)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Share,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Compartilhar Comanda", fontWeight = FontWeight.Bold)
+                OutlinedButton(
+                    onClick = {
+                        com.example.ui.utils.generateInvoicePdfAndShare(
+                            context = context,
+                            order = order,
+                            matchingOrders = matchingOrders,
+                            brandName = brandName
+                        )
+                        onDismiss()
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("PDF", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+                Button(
+                    onClick = {
+                        com.example.ui.utils.generateInvoiceImageAndShare(
+                            context = context,
+                            order = order,
+                            matchingOrders = matchingOrders,
+                            brandName = brandName
+                        )
+                        onDismiss()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = OnPrimary)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("JPG", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
             }
         },
         dismissButton = {
