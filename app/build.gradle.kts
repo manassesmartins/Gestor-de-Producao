@@ -99,6 +99,10 @@ android {
     versionName = appVersion
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    buildConfigField("String", "MQTT_USERNAME", "\"${System.getenv("MQTT_USERNAME") ?: "hivemq.webclient.1782681074830"}\"")
+    buildConfigField("String", "MQTT_PASSWORD", "\"${System.getenv("MQTT_PASSWORD") ?: "SD!I0c?1R;,aW23Jbhfd"}\"")
+    buildConfigField("String", "MQTT_BROKER_URL", "\"${System.getenv("MQTT_BROKER_URL") ?: "ssl://4e359cf3052a4eec92d47310660c8207.s1.eu.hivemq.cloud:8883"}\"")
   }
 
   signingConfigs {

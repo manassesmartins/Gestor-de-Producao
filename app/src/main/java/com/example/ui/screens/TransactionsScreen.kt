@@ -456,7 +456,11 @@ fun TransactionsScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val filters = listOf("SAIDAS" to "Custos / Saídas")
+            val filters = listOf(
+                "TUDO" to "Tudo",
+                "ENTRADAS" to "Entradas",
+                "SAIDAS" to "Saídas"
+            )
             Row(
                 modifier = Modifier.weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)

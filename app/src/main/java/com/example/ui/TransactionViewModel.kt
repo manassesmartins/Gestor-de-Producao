@@ -131,11 +131,12 @@ class TransactionViewModel(
             when (lastDeleteType) {
                 "TX" -> {
                     lastDeletedTransaction?.let { tx ->
-                        repository.insert(tx)
+                        val restored = tx.copy(id = 0)
+                        repository.insert(restored)
                         triggerSyncSimulation()
                         
                         val json = org.json.JSONObject().apply {
-                            put("id", tx.id)
+                            put("id", 0)
                             put("description", tx.description)
                             put("amount", tx.amount)
                             put("type", tx.type)
@@ -153,11 +154,12 @@ class TransactionViewModel(
                 }
                 "CAT" -> {
                     lastDeletedCategory?.let { cat ->
-                        repository.insertCategory(cat)
+                        val restored = cat.copy(id = 0)
+                        repository.insertCategory(restored)
                         triggerSyncSimulation()
                         
                         val json = org.json.JSONObject().apply {
-                            put("id", cat.id)
+                            put("id", 0)
                             put("name", cat.name)
                             put("type", cat.type)
                         }
@@ -169,11 +171,12 @@ class TransactionViewModel(
                 }
                 "ORDER" -> {
                     lastDeletedOrder?.let { order ->
-                        repository.insertOrder(order)
+                        val restored = order.copy(id = 0)
+                        repository.insertOrder(restored)
                         triggerSyncSimulation()
                         
                         val json = org.json.JSONObject().apply {
-                            put("id", order.id)
+                            put("id", 0)
                             put("clientName", order.clientName)
                             put("pantyType", order.pantyType)
                             put("pantySize", order.pantySize)
@@ -193,11 +196,12 @@ class TransactionViewModel(
                 }
                 "CALC" -> {
                     lastDeletedCalculation?.let { calc ->
-                        repository.insertCalculation(calc)
+                        val restored = calc.copy(id = 0)
+                        repository.insertCalculation(restored)
                         triggerSyncSimulation()
                         
                         val json = org.json.JSONObject().apply {
-                            put("id", calc.id)
+                            put("id", 0)
                             put("pano", calc.pano)
                             if (calc.kg != null) put("kg", calc.kg)
                             if (calc.valorKg != null) put("valorKg", calc.valorKg)
@@ -260,6 +264,8 @@ class TransactionViewModel(
             val factory = javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1")
             val hash = factory.generateSecret(spec).encoded
             hash.joinToString("") { "%02x".format(it) }
+        } catch (e: java.security.NoSuchAlgorithmException) {
+            hashPasswordLegacy(password)
         } catch (e: Exception) {
             hashPasswordLegacy(password)
         }
@@ -725,13 +731,19 @@ class TransactionViewModel(
     val filteredTransactions: StateFlow<List<TransactionEntity>> = combine(
         allTransactions,
         _transactionFilter
-    ) { list, _ ->
-        list.filter { it.type == "OUTFLOW" }
+    ) { list, filter ->
+        when (filter) {
+            "ENTRADAS" -> list.filter { it.type == "INFLOW" }
+            "SAIDAS" -> list.filter { it.type == "OUTFLOW" }
+            else -> list // "TUDO"
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Financial summaries computed reactively
     val summary: StateFlow<FinancialSummary> = kotlinx.coroutines.flow.combine(allTransactions, allOrders) { transactions, orders ->
-        val totalIn = orders.sumOf { it.totalValue }
+        val totalInFromOrders = orders.sumOf { it.totalValue }
+        val totalInFromTransactions = transactions.filter { it.type == "INFLOW" }.sumOf { it.amount }
+        val totalIn = totalInFromOrders + totalInFromTransactions
         val totalOut = transactions.filter { it.type == "OUTFLOW" }.sumOf { it.amount }
         val balance = totalIn - totalOut
 
@@ -811,6 +823,7 @@ class TransactionViewModel(
     )
 
     // Automatic DB Sincronization Control
+    @Volatile
     private var isPulling = false
     private var syncJob: kotlinx.coroutines.Job? = null
 
@@ -835,7 +848,7 @@ class TransactionViewModel(
                 repository.allOrders,
                 repository.allCalculations
             ) { _, _, _, _ -> true }.collect {
-                if (!isPulling && _isCloudBackupEnabled.value) {
+                if (!isPulling && !com.example.data.LiveSyncManager.isApplyingRemoteUpdate && _isCloudBackupEnabled.value) {
                     syncJob?.cancel()
                     syncJob = launch {
                         kotlinx.coroutines.delay(1000)
@@ -919,7 +932,8 @@ class TransactionViewModel(
         val currentMonthYear = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date())
         var activeMonth = currentMonthYear
         val cal = java.util.Calendar.getInstance()
-        while (closedMonthsSet.contains(activeMonth)) {
+        var iterations = 0
+        while (closedMonthsSet.contains(activeMonth) && iterations < 24) {
             try {
                 cal.time = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).parse(activeMonth) ?: Date()
                 cal.add(java.util.Calendar.MONTH, 1)
@@ -927,6 +941,7 @@ class TransactionViewModel(
             } catch (e: Exception) {
                 break
             }
+            iterations++
         }
         return activeMonth
     }
@@ -963,7 +978,7 @@ class TransactionViewModel(
                 description = description,
                 amount = amount,
                 type = type,
-                category = category,
+                category = normalizeCategory(category),
                 dateString = finalDateString,
                 timestamp = finalTstamp,
                 synced = _isCloudBackupEnabled.value,
@@ -1061,9 +1076,22 @@ class TransactionViewModel(
         viewModelScope.launch {
             try {
                 val list = repository.allTransactions.first()
-                list.filter { it.type == "OUTFLOW" && it.description == oldDesc }.forEach { tx ->
+                val toUpdate = list.filter { it.type == "OUTFLOW" && it.description == oldDesc }
+                for (tx in toUpdate) {
                     val updatedTx = tx.copy(description = newDesc)
                     repository.insert(updatedTx)
+                    val json = org.json.JSONObject().apply {
+                        put("id", updatedTx.id)
+                        put("description", newDesc)
+                        put("amount", tx.amount)
+                        put("type", tx.type)
+                        put("category", tx.category)
+                        put("dateString", tx.dateString)
+                        put("timestamp", tx.timestamp)
+                        put("extraText", tx.extraText)
+                        put("week", tx.week)
+                    }
+                    com.example.data.LiveSyncManager.publishMutation("transactions", "insert", json)
                 }
                 triggerSyncSimulation()
             } catch (e: Exception) {
@@ -1076,8 +1104,13 @@ class TransactionViewModel(
         viewModelScope.launch {
             try {
                 val list = repository.allTransactions.first()
-                list.filter { it.type == "OUTFLOW" && it.description == desc }.forEach { tx ->
+                val toDelete = list.filter { it.type == "OUTFLOW" && it.description == desc }
+                for (tx in toDelete) {
                     repository.deleteById(tx.id)
+                    val json = org.json.JSONObject().apply {
+                        put("id", tx.id)
+                    }
+                    com.example.data.LiveSyncManager.publishMutation("transactions", "delete", json)
                 }
                 triggerSyncSimulation()
             } catch (e: Exception) {
@@ -1178,6 +1211,13 @@ class TransactionViewModel(
 
     fun deleteEmployee(id: Long) {
         viewModelScope.launch {
+            val payments = repository.allPayments.first().filter { it.employeeId == id }
+            for (payment in payments) {
+                payment.transactionId?.let { txId ->
+                    repository.deleteById(txId)
+                }
+                repository.deletePaymentById(payment.id)
+            }
             repository.deleteEmployeeById(id)
             triggerSyncSimulation()
         }

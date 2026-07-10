@@ -28,4 +28,7 @@ interface InvestmentDao {
 
     @Query("DELETE FROM investments WHERE id = :id")
     suspend fun deleteInvestmentById(id: Long)
+
+    @Query("DELETE FROM investments")
+    suspend fun deleteAll()
 }

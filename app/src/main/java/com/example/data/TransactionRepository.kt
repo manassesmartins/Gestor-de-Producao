@@ -136,6 +136,8 @@ class TransactionRepository(
         employeeDao.deleteAll()
         employeePaymentDao.deleteAll()
         productModelDao.deleteAll()
+        investmentDao.deleteAll()
+        closedMonthDao.deleteAll()
     }
 
     suspend fun insertCategory(category: CategoryEntity): Long {

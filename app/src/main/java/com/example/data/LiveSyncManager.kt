@@ -32,13 +32,14 @@ object LiveSyncManager {
     private const val TAG = "LiveSyncManager"
     private const val PREFS_NAME = "ms_live_sync_prefs"
     private const val KEY_GROUP_CODE = "group_code"
-    private const val BROKER_URL = "ssl://4e359cf3052a4eec92d47310660c8207.s1.eu.hivemq.cloud:8883"
+    private val BROKER_URL = com.example.BuildConfig.MQTT_BROKER_URL
     private const val TOPIC_PREFIX = "gestor_producao/sync/"
 
     var activeGroupCode: String? = null
         private set
 
     val clientUuid: String = UUID.randomUUID().toString().take(8)
+    @Volatile
     var isApplyingRemoteUpdate = false
 
     private var mqttClient: MqttClient? = null
@@ -147,8 +148,8 @@ object LiveSyncManager {
             isCleanSession = true
             connectionTimeout = 10
             keepAliveInterval = 20
-            userName = "hivemq.webclient.1782681074830"
-            this.password = "SD!I0c?1R;,aW23Jbhfd".toCharArray()
+            userName = com.example.BuildConfig.MQTT_USERNAME
+            this.password = com.example.BuildConfig.MQTT_PASSWORD.toCharArray()
         }
 
         client.setCallback(object : MqttCallback {
@@ -480,7 +481,8 @@ object LiveSyncManager {
         if (brandConfigJson != null) {
             val incomingConfigured = brandConfigJson.optBoolean("isConfigured", false)
             val currentConfig = repo.getBrandConfig()
-            if (incomingConfigured || currentConfig == null || !currentConfig.isConfigured) {
+            val localIsConfigured = currentConfig != null && currentConfig.isConfigured
+            if (incomingConfigured && !localIsConfigured) {
                 try {
                     repo.insertBrandConfig(BrandConfigEntity(
                         brandName = brandConfigJson.optString("brandName", ""),

@@ -16,4 +16,7 @@ interface ClosedMonthDao {
 
     @Query("DELETE FROM closed_months WHERE monthYear = :monthYear")
     suspend fun deleteClosedMonth(monthYear: String)
+
+    @Query("DELETE FROM closed_months")
+    suspend fun deleteAll()
 }
