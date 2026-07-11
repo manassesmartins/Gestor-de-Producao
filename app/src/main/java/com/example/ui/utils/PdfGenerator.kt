@@ -325,8 +325,8 @@ private fun drawInvoiceContent(
     canvas.drawText("EMISSÃO:", 50f * scale, emissaoY, paint)
     paint.isFakeBoldText = false
     paint.color = Color.BLACK
-    val dateFormatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("pt", "BR"))
-    canvas.drawText(dateFormatter.format(Date(order.timestamp)), 120f * scale, emissaoY, paint)
+    val dateFormatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("pt", "BR"), java.util.TimeZone.getDefault())
+    canvas.drawText(dateFormatter.format(Date()), 120f * scale, emissaoY, paint)
 
     val divider2Y = emissaoY + 18f * scale
     paint.color = dividerColor

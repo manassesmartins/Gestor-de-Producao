@@ -744,7 +744,12 @@ fun NewTransactionScreen(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { selectedDateMillis = it }
+                    datePickerState.selectedDateMillis?.let { utcMillis ->
+                        val cal = java.util.Calendar.getInstance()
+                        cal.timeInMillis = utcMillis
+                        cal.set(java.util.Calendar.HOUR_OF_DAY, 12)
+                        selectedDateMillis = cal.timeInMillis
+                    }
                     showDatePicker = false
                 }) {
                     Text("OK", color = Primary)

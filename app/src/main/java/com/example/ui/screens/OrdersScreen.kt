@@ -726,7 +726,7 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Comanda Principal (PDF)", fontSize = 12.sp)
+                                    Text("Gerar Comanda", fontSize = 12.sp)
                                 }
                             }
                         }
@@ -1379,6 +1379,7 @@ fun OrderInvoiceDialog(
                     Icon(
                         imageVector = Icons.Default.PictureAsPdf,
                         contentDescription = null,
+                        tint = Primary,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
