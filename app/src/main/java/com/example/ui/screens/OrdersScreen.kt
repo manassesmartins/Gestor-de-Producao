@@ -843,9 +843,11 @@ fun OrderAddEditDialog(
 
     var name by remember { mutableStateOf(order?.clientName ?: "") }
     var expandedNameDropdown by remember { mutableStateOf(false) }
+    var showNewClientDialog by remember { mutableStateOf(false) }
 
     var model by remember { mutableStateOf(order?.pantyType ?: "") }
     var expandedModelDropdown by remember { mutableStateOf(false) }
+    var showNewModelDialog by remember { mutableStateOf(false) }
     var size by remember { mutableStateOf(order?.pantySize ?: "M") }
     var qtyText by remember { mutableStateOf(order?.quantity?.toString() ?: "100") }
     var priceText by remember { mutableStateOf(order?.pantyValue?.toString() ?: "1.15") }
@@ -921,55 +923,52 @@ fun OrderAddEditDialog(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
             ) {
-                ExposedDropdownMenuBox(
-                    expanded = expandedNameDropdown,
-                    onExpandedChange = { expandedNameDropdown = it },
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it ; expandedNameDropdown = true },
-                        label = { Text("Nome do Cliente", color = OnSurfaceVariant) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = OnSurface,
-                            unfocusedTextColor = OnSurface,
-                            focusedBorderColor = Primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
-                        ),
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    
-                    ExposedDropdownMenu(
+                    ExposedDropdownMenuBox(
                         expanded = expandedNameDropdown,
-                        onDismissRequest = { expandedNameDropdown = false },
-                        modifier = Modifier.background(SurfaceContainerHigh).border(1.dp, Color.White.copy(alpha = 0.08f))
+                        onExpandedChange = { expandedNameDropdown = it },
+                        modifier = Modifier.weight(1f)
                     ) {
-                        val filteredClients = existingClients.filter { it.contains(name, ignoreCase=true) }
-                        filteredClients.forEach { client ->
-                            DropdownMenuItem(
-                                text = { Text(client, color = OnSurface) },
-                                onClick = {
-                                    name = client
-                                    expandedNameDropdown = false
-                                }
-                            )
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Nome do Cliente", color = OnSurfaceVariant) },
+                            placeholder = { Text("Selecione um cliente...", color = OnSurfaceVariant.copy(alpha = 0.5f)) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = OnSurface,
+                                unfocusedTextColor = OnSurface,
+                                focusedBorderColor = Primary,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                            ),
+                            modifier = Modifier.fillMaxWidth().menuAnchor()
+                        )
+                        
+                        ExposedDropdownMenu(
+                            expanded = expandedNameDropdown,
+                            onDismissRequest = { expandedNameDropdown = false },
+                            modifier = Modifier.background(SurfaceContainerHigh).border(1.dp, Color.White.copy(alpha = 0.08f))
+                        ) {
+                            existingClients.forEach { client ->
+                                DropdownMenuItem(
+                                    text = { Text(client, color = OnSurface) },
+                                    onClick = {
+                                        name = client
+                                        expandedNameDropdown = false
+                                    }
+                                )
+                            }
                         }
-
-                        val trimmedName = name.trim()
-                        if (trimmedName.isNotEmpty() && !masterClients.any { it.name.trim().equals(trimmedName, ignoreCase = true) }) {
-                            DropdownMenuItem(
-                                text = { 
-                                    Text(
-                                        text = "+ Cadastrar \"$trimmedName\" como Cliente", 
-                                        color = Primary, 
-                                        fontWeight = FontWeight.Bold 
-                                    ) 
-                                },
-                                onClick = {
-                                    viewModel.addClient(trimmedName)
-                                    expandedNameDropdown = false
-                                }
-                            )
-                        }
+                    }
+                    IconButton(
+                        onClick = { showNewClientDialog = true },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Novo Cliente", tint = Primary)
                     }
                 }
 
@@ -1016,56 +1015,56 @@ fun OrderAddEditDialog(
                     }
                 }
 
-                ExposedDropdownMenuBox(
-                    expanded = expandedModelDropdown,
-                    onExpandedChange = { expandedModelDropdown = it },
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    OutlinedTextField(
-                        value = model,
-                        onValueChange = { model = it ; expandedModelDropdown = true },
-                        label = { Text("Tipo/Modelo de Calcinha", color = OnSurfaceVariant) },
-                        placeholder = { Text("Ex: Cotton Summerplex", color = OnSurfaceVariant.copy(alpha = 0.5f)) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = OnSurface,
-                            unfocusedTextColor = OnSurface,
-                            focusedBorderColor = Primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
-                        ),
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    
-                    ExposedDropdownMenu(
+                    ExposedDropdownMenuBox(
                         expanded = expandedModelDropdown,
-                        onDismissRequest = { expandedModelDropdown = false },
-                        modifier = Modifier.background(SurfaceContainerHigh).border(1.dp, Color.White.copy(alpha = 0.08f))
+                        onExpandedChange = { expandedModelDropdown = it },
+                        modifier = Modifier.weight(1f)
                     ) {
-                        val filteredModels = existingModels.filter { it.contains(model, ignoreCase=true) }
-                        filteredModels.forEach { itemModel ->
-                            DropdownMenuItem(
-                                text = { Text(itemModel, color = OnSurface) },
-                                onClick = {
-                                    model = itemModel
-                                    expandedModelDropdown = false
-                                }
-                            )
+                        OutlinedTextField(
+                            value = model,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Tipo/Modelo de Calcinha", color = OnSurfaceVariant) },
+                            placeholder = { Text("Selecione um modelo...", color = OnSurfaceVariant.copy(alpha = 0.5f)) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = OnSurface,
+                                unfocusedTextColor = OnSurface,
+                                focusedBorderColor = Primary,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                            ),
+                            modifier = Modifier.fillMaxWidth().menuAnchor()
+                        )
+                        
+                        ExposedDropdownMenu(
+                            expanded = expandedModelDropdown,
+                            onDismissRequest = { expandedModelDropdown = false },
+                            modifier = Modifier.background(SurfaceContainerHigh).border(1.dp, Color.White.copy(alpha = 0.08f))
+                        ) {
+                            existingModels.forEach { itemModel ->
+                                DropdownMenuItem(
+                                    text = { Text(itemModel, color = OnSurface) },
+                                    onClick = {
+                                        model = itemModel
+                                        val matchedProduct = productModels.find { it.name.trim().equals(itemModel.trim(), ignoreCase = true) }
+                                        if (matchedProduct != null && matchedProduct.price > 0) {
+                                            priceText = matchedProduct.price.toString()
+                                        }
+                                        expandedModelDropdown = false
+                                    }
+                                )
+                            }
                         }
-
-                        val trimmedModel = model.trim()
-                        if (trimmedModel.isNotEmpty() && !productModels.any { it.name.trim().equals(trimmedModel, ignoreCase = true) }) {
-                            DropdownMenuItem(
-                                text = { 
-                                    Text(
-                                        text = "+ Cadastrar Modelo \"$trimmedModel\"", 
-                                        color = Primary, 
-                                        fontWeight = FontWeight.Bold 
-                                    ) 
-                                },
-                                onClick = {
-                                    viewModel.addProductModel(trimmedModel)
-                                    expandedModelDropdown = false
-                                }
-                            )
-                        }
+                    }
+                    IconButton(
+                        onClick = { showNewModelDialog = true },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Novo Modelo", tint = Primary)
                     }
                 }
 
@@ -1200,6 +1199,83 @@ fun OrderAddEditDialog(
             }
         }
     )
+
+    if (showNewClientDialog) {
+        var newClientName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showNewClientDialog = false },
+            title = { Text("Novo Cliente", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) },
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            text = {
+                OutlinedTextField(
+                    value = newClientName,
+                    onValueChange = { newClientName = it },
+                    label = { Text("Nome do Cliente", color = OnSurfaceVariant) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = OnSurface, unfocusedTextColor = OnSurface)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (newClientName.trim().isNotEmpty()) {
+                            viewModel.addClient(newClientName.trim())
+                            name = newClientName.trim()
+                            showNewClientDialog = false
+                        }
+                    },
+                    enabled = newClientName.trim().isNotEmpty()
+                ) { Text("Cadastrar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewClientDialog = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    if (showNewModelDialog) {
+        var newModelName by remember { mutableStateOf("") }
+        var newModelPrice by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showNewModelDialog = false },
+            title = { Text("Novo Modelo de Peça", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) },
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = newModelName,
+                        onValueChange = { newModelName = it },
+                        label = { Text("Nome do Modelo", color = OnSurfaceVariant) },
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = OnSurface, unfocusedTextColor = OnSurface)
+                    )
+                    OutlinedTextField(
+                        value = newModelPrice,
+                        onValueChange = { newModelPrice = it },
+                        label = { Text("Valor Unitário (R$)", color = OnSurfaceVariant) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        prefix = { Text("R$", color = Primary) },
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = OnSurface, unfocusedTextColor = OnSurface)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val price = newModelPrice.replace(',', '.').toDoubleOrNull() ?: 0.0
+                        if (newModelName.trim().isNotEmpty()) {
+                            viewModel.addProductModel(newModelName.trim(), price)
+                            model = newModelName.trim()
+                            if (price > 0) priceText = price.toString()
+                            showNewModelDialog = false
+                        }
+                    },
+                    enabled = newModelName.trim().isNotEmpty()
+                ) { Text("Cadastrar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewModelDialog = false }) { Text("Cancelar") }
+            }
+        )
+    }
 }
 
 @Composable

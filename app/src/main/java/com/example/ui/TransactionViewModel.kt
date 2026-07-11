@@ -1223,27 +1223,29 @@ class TransactionViewModel(
         }
     }
 
-    fun addProductModel(name: String) {
+    fun addProductModel(name: String, price: Double = 0.0) {
         viewModelScope.launch {
-            val newId = repository.insertProductModel(com.example.data.ProductModelEntity(name = name))
+            val newId = repository.insertProductModel(com.example.data.ProductModelEntity(name = name, price = price))
             triggerSyncSimulation()
             
             val json = org.json.JSONObject().apply {
                 put("id", newId)
                 put("name", name)
+                put("price", price)
             }
             com.example.data.LiveSyncManager.publishMutation("models", "insert", json)
         }
     }
 
-    fun updateProductModel(id: Long, name: String) {
+    fun updateProductModel(id: Long, name: String, price: Double = 0.0) {
         viewModelScope.launch {
-            repository.insertProductModel(com.example.data.ProductModelEntity(id = id, name = name))
+            repository.insertProductModel(com.example.data.ProductModelEntity(id = id, name = name, price = price))
             triggerSyncSimulation()
             
             val json = org.json.JSONObject().apply {
                 put("id", id)
                 put("name", name)
+                put("price", price)
             }
             com.example.data.LiveSyncManager.publishMutation("models", "insert", json)
         }

@@ -74,6 +74,7 @@ fun NewTransactionScreen(
 
     var categoryText by remember(currentEditingTransaction) { mutableStateOf(currentEditingTransaction?.category ?: "") }
     var expandedCategoryDropdown by remember { mutableStateOf(false) }
+    var showNewCategoryDialog by remember { mutableStateOf(false) }
 
     val masterCategories by viewModel.allCategories.collectAsStateWithLifecycle(emptyList())
     val existingCategoryNames = remember(masterCategories) {
@@ -165,72 +166,64 @@ fun NewTransactionScreen(
                         color = OnSurfaceVariant,
                         letterSpacing = 0.5.sp
                     )
-                    ExposedDropdownMenuBox(
-                        expanded = expandedCategoryDropdown,
-                        onExpandedChange = { expandedCategoryDropdown = it },
-                        modifier = Modifier.fillMaxWidth()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        OutlinedTextField(
-                            value = categoryText,
-                            onValueChange = { 
-                                categoryText = it
-                                expandedCategoryDropdown = true 
-                            },
-                            placeholder = { Text("Selecione ou digite um tipo de gasto registrado...", color = OnSurfaceVariant.copy(alpha = 0.5f)) },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = OnSurface,
-                                unfocusedTextColor = OnSurface,
-                                focusedBorderColor = Primary,
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
-                                focusedContainerColor = Color.White.copy(alpha = 0.04f),
-                                unfocusedContainerColor = Color.White.copy(alpha = 0.04f)
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor()
-                                .testTag("category_input"),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        val filteredCategories = existingCategoryNames.filter { it.contains(categoryText, ignoreCase = true) }
-                        
-                        ExposedDropdownMenu(
+                        ExposedDropdownMenuBox(
                             expanded = expandedCategoryDropdown,
-                            onDismissRequest = { expandedCategoryDropdown = false },
-                            modifier = Modifier.background(SurfaceDark).border(1.dp, Color.White.copy(alpha = 0.08f))
+                            onExpandedChange = { expandedCategoryDropdown = it },
+                            modifier = Modifier.weight(1f)
                         ) {
-                            if (filteredCategories.isEmpty() && categoryText.isBlank()) {
-                                DropdownMenuItem(
-                                    text = { Text("Cadastre nomes de gastos no menu de Recursos", fontSize = 12.sp, color = OnSurfaceVariant) },
-                                    onClick = {}
-                                )
-                            } else {
-                                filteredCategories.forEach { cat ->
+                            OutlinedTextField(
+                                value = categoryText,
+                                onValueChange = {},
+                                readOnly = true,
+                                placeholder = { Text("Selecione um tipo de gasto...", color = OnSurfaceVariant.copy(alpha = 0.5f)) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = OnSurface,
+                                    unfocusedTextColor = OnSurface,
+                                    focusedBorderColor = Primary,
+                                    unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
+                                    focusedContainerColor = Color.White.copy(alpha = 0.04f),
+                                    unfocusedContainerColor = Color.White.copy(alpha = 0.04f)
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor()
+                                    .testTag("category_input"),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            
+                            ExposedDropdownMenu(
+                                expanded = expandedCategoryDropdown,
+                                onDismissRequest = { expandedCategoryDropdown = false },
+                                modifier = Modifier.background(SurfaceDark).border(1.dp, Color.White.copy(alpha = 0.08f))
+                            ) {
+                                if (existingCategoryNames.isEmpty()) {
                                     DropdownMenuItem(
-                                        text = { Text(cat, color = OnSurface) },
-                                        onClick = {
-                                            categoryText = cat
-                                            expandedCategoryDropdown = false
-                                        }
+                                        text = { Text("Cadastre nomes de gastos no menu de Recursos", fontSize = 12.sp, color = OnSurfaceVariant) },
+                                        onClick = {}
                                     )
+                                } else {
+                                    existingCategoryNames.forEach { cat ->
+                                        DropdownMenuItem(
+                                            text = { Text(cat, color = OnSurface) },
+                                            onClick = {
+                                                categoryText = cat
+                                                expandedCategoryDropdown = false
+                                            }
+                                        )
+                                    }
                                 }
                             }
-                            
-                            val trimmedCat = categoryText.trim()
-                            if (trimmedCat.isNotEmpty() && !existingCategoryNames.any { it.equals(trimmedCat, ignoreCase = true) }) {
-                                DropdownMenuItem(
-                                    text = { 
-                                        Text(
-                                            text = "+ Cadastrar \"$trimmedCat\" no Catálogo", 
-                                            color = Primary, 
-                                            fontWeight = FontWeight.Bold 
-                                        ) 
-                                    },
-                                    onClick = {
-                                        viewModel.addCategory(trimmedCat, "OUTFLOW")
-                                        expandedCategoryDropdown = false
-                                    }
-                                )
-                            }
+                        }
+                        IconButton(
+                            onClick = { showNewCategoryDialog = true },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Nova Categoria", tint = Primary)
                         }
                     }
                 }
@@ -253,11 +246,9 @@ fun NewTransactionScreen(
                     ) {
                         OutlinedTextField(
                             value = description,
-                            onValueChange = { 
-                                description = it
-                                expandedDescDropdown = true 
-                            },
-                            placeholder = { Text("Ex: Fornecedor TexArt, Conserto da Galoneira, etc.", color = OnSurfaceVariant.copy(alpha = 0.5f)) },
+                            onValueChange = {},
+                            readOnly = true,
+                            placeholder = { Text("Selecione um histórico ou deixe vazio...", color = OnSurfaceVariant.copy(alpha = 0.5f)) },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = OnSurface,
                                 unfocusedTextColor = OnSurface,
@@ -272,14 +263,13 @@ fun NewTransactionScreen(
                                 .testTag("description_input"),
                             shape = RoundedCornerShape(12.dp)
                         )
-                        val filteredExpenses = existingExpenses.filter { it.contains(description, ignoreCase = true) }
-                        if (filteredExpenses.isNotEmpty() && expandedDescDropdown) {
+                        if (existingExpenses.isNotEmpty() && expandedDescDropdown) {
                             ExposedDropdownMenu(
                                 expanded = expandedDescDropdown,
                                 onDismissRequest = { expandedDescDropdown = false },
                                 modifier = Modifier.background(SurfaceDark).border(1.dp, Color.White.copy(alpha = 0.08f))
                             ) {
-                                filteredExpenses.forEach { exp ->
+                                existingExpenses.forEach { exp ->
                                     DropdownMenuItem(
                                         text = { Text(exp, color = OnSurface) },
                                         onClick = {
@@ -733,6 +723,38 @@ fun NewTransactionScreen(
                 TextButton(onClick = { expenseToDelete = null }) {
                     Text("Cancelar", color = OnSurfaceVariant)
                 }
+            }
+        )
+    }
+
+    if (showNewCategoryDialog) {
+        var newCategoryName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showNewCategoryDialog = false },
+            title = { Text("Nova Categoria de Gasto", fontWeight = FontWeight.Bold, color = Primary) },
+            containerColor = SurfaceDark,
+            text = {
+                OutlinedTextField(
+                    value = newCategoryName,
+                    onValueChange = { newCategoryName = it },
+                    label = { Text("Nome da Categoria", color = OnSurfaceVariant) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = OnSurface, unfocusedTextColor = OnSurface)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (newCategoryName.trim().isNotEmpty()) {
+                            viewModel.addCategory(newCategoryName.trim(), "OUTFLOW")
+                            categoryText = newCategoryName.trim()
+                            showNewCategoryDialog = false
+                        }
+                    },
+                    enabled = newCategoryName.trim().isNotEmpty()
+                ) { Text("Cadastrar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewCategoryDialog = false }) { Text("Cancelar") }
             }
         )
     }

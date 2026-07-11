@@ -315,6 +315,7 @@ object LiveSyncManager {
                     put(JSONObject().apply {
                         put("id", m.id)
                         put("name", m.name)
+                        put("price", m.price)
                     })
                 }
             }
@@ -472,7 +473,8 @@ object LiveSyncManager {
                 try {
                     repo.insertProductModel(ProductModelEntity(
                         id = mJson.optLong("id", 0),
-                        name = mJson.optString("name", "")
+                        name = mJson.optString("name", ""),
+                        price = mJson.optDouble("price", 0.0)
                     ))
                 } catch (e: Exception) { Log.w(TAG, "Error inserting model", e) }
             }
@@ -576,7 +578,8 @@ object LiveSyncManager {
                     when (action) {
                         "insert" -> repo.insertProductModel(ProductModelEntity(
                             id = data.optLong("id", 0),
-                            name = data.optString("name", "")
+                            name = data.optString("name", ""),
+                            price = data.optDouble("price", 0.0)
                         ))
                         "delete" -> repo.deleteProductModelById(data.optLong("id", 0))
                     }

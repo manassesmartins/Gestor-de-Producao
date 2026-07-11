@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ProductModelEntity::class,
         ClosedMonthEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -133,6 +133,12 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `product_models` ADD COLUMN `price` REAL NOT NULL DEFAULT 0.0")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -141,7 +147,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "ms_modaintima_database"
                 )
                     .addMigrations(
-                        MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10
+                        MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11
                     )
                     .fallbackToDestructiveMigration()
                     .build()

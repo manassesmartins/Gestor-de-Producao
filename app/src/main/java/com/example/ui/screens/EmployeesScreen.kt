@@ -20,6 +20,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -569,7 +571,7 @@ fun MasterRegistriesTab(viewModel: TransactionViewModel) {
                         items(productModels, key = { it.id }) { model ->
                             ItemRowCard(
                                 title = model.name,
-                                subtitle = "Modelo de Peça registrado",
+                                subtitle = if (model.price > 0) "R$ %.2f /un".format(model.price) else "Sem valor definido",
                                 icon = Icons.Default.Build,
                                 onEdit = { showAddEditModelDialog = model },
                                 onDelete = {
@@ -663,8 +665,8 @@ fun MasterRegistriesTab(viewModel: TransactionViewModel) {
         AddEditProductModelDialog(
             model = null,
             onDismiss = { showAddModelDialog = false },
-            onSave = { name ->
-                viewModel.addProductModel(name)
+            onSave = { name, price ->
+                viewModel.addProductModel(name, price)
                 showAddModelDialog = false
                 Toast.makeText(context, "Modelo adicionado com sucesso!", Toast.LENGTH_SHORT).show()
             }
@@ -674,8 +676,8 @@ fun MasterRegistriesTab(viewModel: TransactionViewModel) {
         AddEditProductModelDialog(
             model = model,
             onDismiss = { showAddEditModelDialog = null },
-            onSave = { name ->
-                viewModel.updateProductModel(model.id, name)
+            onSave = { name, price ->
+                viewModel.updateProductModel(model.id, name, price)
                 showAddEditModelDialog = null
                 Toast.makeText(context, "Modelo de peça atualizado!", Toast.LENGTH_SHORT).show()
             }
@@ -849,25 +851,39 @@ fun AddEditEmployeeDialog(
 fun AddEditProductModelDialog(
     model: ProductModelEntity?,
     onDismiss: () -> Unit,
-    onSave: (String) -> Unit
+    onSave: (String, Double) -> Unit
 ) {
     var name by remember { mutableStateOf(model?.name ?: "") }
+    var priceText by remember { mutableStateOf(model?.price?.toString() ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (model == null) "Novo Modelo de Peça" else "Editar Modelo", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) },
         containerColor = MaterialTheme.colorScheme.surfaceVariant,
         text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Nome do Modelo / Produto", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = MaterialTheme.colorScheme.onSurface, unfocusedTextColor = MaterialTheme.colorScheme.onSurface)
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nome do Modelo / Produto", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = MaterialTheme.colorScheme.onSurface, unfocusedTextColor = MaterialTheme.colorScheme.onSurface)
+                )
+                OutlinedTextField(
+                    value = priceText,
+                    onValueChange = { priceText = it },
+                    label = { Text("Valor Unitário (R$)", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    prefix = { Text("R$", color = MaterialTheme.colorScheme.primary) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = MaterialTheme.colorScheme.onSurface, unfocusedTextColor = MaterialTheme.colorScheme.onSurface)
+                )
+            }
         },
         confirmButton = {
             Button(
-                onClick = { if (name.trim().isNotEmpty()) onSave(name.trim()) },
+                onClick = {
+                    val price = priceText.replace(',', '.').toDoubleOrNull() ?: 0.0
+                    if (name.trim().isNotEmpty()) onSave(name.trim(), price)
+                },
                 enabled = name.trim().isNotEmpty()
             ) {
                 Text("Confirmar")
