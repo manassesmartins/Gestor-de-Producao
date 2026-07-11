@@ -586,7 +586,7 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))
-                            Divider(color = Color.White.copy(alpha = 0.05f))
+                            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                             Spacer(modifier = Modifier.height(10.dp))
 
                             // List all sub-items in the group
@@ -675,12 +675,12 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
                                     }
                                 }
                                 if (order != group.last()) {
-                                    Divider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 4.dp))
+                                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 4.dp))
                                 }
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))
-                            Divider(color = Color.White.copy(alpha = 0.05f))
+                            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                             Spacer(modifier = Modifier.height(10.dp))
 
                             Row(
@@ -1010,7 +1010,7 @@ fun OrderAddEditDialog(
                                 Icon(imageVector = Icons.Default.Add, contentDescription = "Preencher dados", modifier = Modifier.size(16.dp), tint = Primary)
                             }
                             if (histOrder != clientHistory.last()) {
-                                Divider(color = Color.White.copy(alpha = 0.05f))
+                                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                             }
                         }
                     }
@@ -1162,7 +1162,7 @@ fun OrderAddEditDialog(
                     }
                 }
 
-                Divider(color = Color.White.copy(alpha = 0.08f))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1357,7 +1357,7 @@ fun OrderInvoiceDialog(
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
-                Divider(color = Color.LightGray, modifier = Modifier.padding(top = 10.dp))
+                HorizontalDivider(color = Color.LightGray, modifier = Modifier.padding(top = 10.dp))
             }
         },
         confirmButton = {

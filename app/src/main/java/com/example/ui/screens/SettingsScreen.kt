@@ -663,7 +663,7 @@ fun SettingsScreen(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Divider(color = Color.White.copy(alpha = 0.05f))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Theme Mode Option (Light vs Dark Theme)
@@ -698,7 +698,7 @@ fun SettingsScreen(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Divider(color = Color.White.copy(alpha = 0.05f))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Font Size Settings (Acessibilidade)
@@ -747,7 +747,7 @@ fun SettingsScreen(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Divider(color = Color.White.copy(alpha = 0.05f))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                          // Layout Colors / Theme Presets Option
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
@@ -947,7 +947,7 @@ fun SettingsScreen(
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    Divider(color = Color.White.copy(alpha = 0.05f))
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Button(
@@ -1008,7 +1008,7 @@ fun SettingsScreen(
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Divider(color = Color.White.copy(alpha = 0.05f))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
@@ -1090,7 +1090,7 @@ fun SettingsScreen(
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
-                Divider(color = Color.White.copy(alpha = 0.05f))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Connection Status
@@ -1160,7 +1160,7 @@ fun SettingsScreen(
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
-                Divider(color = Color.White.copy(alpha = 0.05f))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Pairing code input
@@ -1278,7 +1278,7 @@ fun SettingsScreen(
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Divider(color = Color.White.copy(alpha = 0.05f))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
@@ -1321,7 +1321,7 @@ fun SettingsScreen(
                 var showAdvanced by remember { mutableStateOf(false) }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Divider(color = Color.White.copy(alpha = 0.05f))
+                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(

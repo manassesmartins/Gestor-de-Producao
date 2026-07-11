@@ -291,7 +291,7 @@ fun DashboardScreen(
                         color = OnSurfaceVariant
                     )
                     
-                    Divider(color = Color.White.copy(alpha = 0.1f))
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
                     
                     Text("RESUMO DOS INDICADORES:", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Primary)
                     Text("• Faturamento Bruto (Encomendas): " + String.format(Locale("pt", "BR"), "R$ %,.2f", totalIn), fontSize = 12.sp, color = Color.White)
@@ -301,7 +301,7 @@ fun DashboardScreen(
                     Text("• Volume Total Fabricado: " + countPieces + " peças", fontSize = 12.sp, color = Color.White)
                     Text("• Custo Médio por Peça Produzida: " + String.format(Locale("pt", "BR"), "R$ %,.2f", costPiece), fontSize = 12.sp, color = Color.White)
 
-                    Divider(color = Color.White.copy(alpha = 0.1f))
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
                     
                     Text("DETALHAMENTO DE RATEIO DE GASTOS:", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Primary)
                     summary.categoryBreakdown.forEach { (cat, pct) ->
@@ -567,7 +567,7 @@ fun DashboardScreen(
                                 modifier = Modifier.testTag("dashboard_balance")
                             )
                             Spacer(modifier = Modifier.height(12.dp))
-                            Divider(color = Color.White.copy(alpha = 0.05f))
+                            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                             Spacer(modifier = Modifier.height(10.dp))
                             val pct = summary.profitPercentageVsLastMonth
                             if (pct != null) {
