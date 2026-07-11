@@ -1,5 +1,5 @@
 {
-  "version": "1.20.95",
-  "changelog": "Build automático: Commit 	modified:   app/src/main/java/com/example/ui/utils/PdfGenerator.kt",
+  "version": "1.20.97",
+  "changelog": "Build automático: Commit 	modified:   app/src/main/java/com/example/ui/screens/EmployeesScreen.kt",
   "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
 }
