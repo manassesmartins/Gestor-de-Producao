@@ -1,10 +1,5 @@
 {
-  "version": "1.20.92",
-  "changelog": "Build automático: Commit 	modified:   app/src/main/java/com/example/ui/AtelierApp.kt
-	modified:   app/src/main/java/com/example/ui/TransactionViewModel.kt
-	modified:   app/src/main/java/com/example/ui/screens/DashboardScreen.kt
-	modified:   app/src/main/java/com/example/ui/screens/NewTransactionScreen.kt
-	modified:   app/src/main/java/com/example/ui/screens/OrdersScreen.kt
-	modified:   app/src/main/java/com/example/ui/screens/TransactionsScreen.kt",
+  "version": "1.20.95",
+  "changelog": "Build automático: Commit 	modified:   app/src/main/java/com/example/ui/utils/PdfGenerator.kt",
   "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
 }
