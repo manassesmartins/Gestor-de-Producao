@@ -105,14 +105,14 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                                        .background(OnSurface.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
                                         .padding(10.dp)
                                 ) {
                                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Text("Versão do Servidor: ${stat.version}", fontSize = 13.sp, color = Secondary, fontWeight = FontWeight.Bold)
                                         Text("Sincronizada em: ${stat.date}", fontSize = 12.sp, color = OnSurfaceVariant)
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                                        HorizontalDivider(color = OnSurface.copy(alpha = 0.08f))
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text("Melhorias e Ajustes:", fontSize = 11.sp, color = OnSurfaceVariant, fontWeight = FontWeight.Bold)
                                         Text(stat.changelog, fontSize = 12.sp, color = OnSurface)
@@ -246,7 +246,7 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
                             Text(
                                 text = "Aviso de Atualização",
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFFFB4AB)
+                                color = ErrorColor
                             )
                         },
                         containerColor = SurfaceContainerHigh,
@@ -260,7 +260,7 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
                         confirmButton = {
                             Button(
                                 onClick = { updater.clearStatus() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.08f), contentColor = OnSurface),
+                                colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = OnPrimary),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Text("Ok", fontWeight = FontWeight.Bold)
@@ -614,7 +614,7 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = ErrorColor,
-                                contentColor = Color.White
+                                contentColor = OnPrimary
                             ),
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.weight(1f)
@@ -731,14 +731,14 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                                    .background(OnSurface.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
                                     .padding(10.dp)
                             ) {
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text("Versão do Servidor: ${stat.version}", fontSize = 13.sp, color = Secondary, fontWeight = FontWeight.Bold)
                                     Text("Sincronizada em: ${stat.date}", fontSize = 12.sp, color = OnSurfaceVariant)
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                                    HorizontalDivider(color = OnSurface.copy(alpha = 0.08f))
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text("Melhorias e Ajustes:", fontSize = 11.sp, color = OnSurfaceVariant, fontWeight = FontWeight.Bold)
                                     Text(stat.changelog, fontSize = 12.sp, color = OnSurface)
@@ -872,7 +872,7 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
                         Text(
                             text = "Aviso de Atualização",
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFFFB4AB)
+                            color = ErrorColor
                         )
                     },
                     containerColor = SurfaceContainerHigh,
@@ -886,7 +886,7 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
                     confirmButton = {
                         Button(
                             onClick = { updater.clearStatus() },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.08f), contentColor = OnSurface),
+                            colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = OnPrimary),
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text("Ok", fontWeight = FontWeight.Bold)
@@ -906,7 +906,7 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = null,
-                                tint = Color(0xFF34D399), // custom beautiful emerald green
+                                tint = Primary,
                                 modifier = Modifier.size(24.dp)
                             )
                             Text(
@@ -987,7 +987,7 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
                         onClick = { viewModel.confirmDelete() },
                         colors = ButtonDefaults.buttonColors(containerColor = ErrorColor)
                     ) {
-                        Text("Excluir", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        Text("Excluir", color = OnPrimary, fontWeight = FontWeight.SemiBold)
                     }
                 },
                 dismissButton = {

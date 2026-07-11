@@ -83,7 +83,7 @@ fun EmployeesScreen(viewModel: TransactionViewModel) {
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color.White.copy(alpha = 0.05f))
+                .background(OnSurface.copy(alpha = 0.05f))
                 .padding(4.dp)
         ) {
             val tabs = listOf(
@@ -152,10 +152,10 @@ fun EmployeePaymentsTab(viewModel: TransactionViewModel) {
         item {
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.04f)),
+                colors = CardDefaults.cardColors(containerColor = OnSurface.copy(alpha = 0.04f)),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                    .border(1.dp, OnSurface.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -182,7 +182,7 @@ fun EmployeePaymentsTab(viewModel: TransactionViewModel) {
                                 focusedTextColor = OnSurface,
                                 unfocusedTextColor = OnSurface,
                                 focusedBorderColor = Primary,
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                                unfocusedBorderColor = OnSurface.copy(alpha = 0.12f)
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -226,7 +226,7 @@ fun EmployeePaymentsTab(viewModel: TransactionViewModel) {
                                 focusedTextColor = OnSurface,
                                 unfocusedTextColor = OnSurface,
                                 focusedBorderColor = Primary,
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                                unfocusedBorderColor = OnSurface.copy(alpha = 0.12f)
                             ),
                             modifier = Modifier.weight(1f)
                         )
@@ -246,7 +246,7 @@ fun EmployeePaymentsTab(viewModel: TransactionViewModel) {
                                     focusedTextColor = OnSurface,
                                     unfocusedTextColor = OnSurface,
                                     focusedBorderColor = Primary,
-                                    unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                                    unfocusedBorderColor = OnSurface.copy(alpha = 0.12f)
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -345,8 +345,8 @@ fun EmployeePaymentsTab(viewModel: TransactionViewModel) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.03f)),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+                    colors = CardDefaults.cardColors(containerColor = OnSurface.copy(alpha = 0.03f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, OnSurface.copy(alpha = 0.05f))
                 ) {
                     Row(
                         modifier = Modifier
@@ -449,11 +449,11 @@ fun MasterRegistriesTab(viewModel: TransactionViewModel) {
                     modifier = Modifier
                         .clip(RoundedCornerShape(32.dp))
                         .background(
-                            if (isSelected) Primary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f)
+                            if (isSelected) Primary.copy(alpha = 0.15f) else OnSurface.copy(alpha = 0.05f)
                         )
                         .border(
                             1.dp,
-                            if (isSelected) Primary.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.1f),
+                            if (isSelected) Primary.copy(alpha = 0.5f) else OnSurface.copy(alpha = 0.1f),
                             RoundedCornerShape(32.dp)
                         )
                         .clickable { activeListSection = key }
@@ -725,8 +725,8 @@ fun ItemRowCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.03f)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+        colors = CardDefaults.cardColors(containerColor = OnSurface.copy(alpha = 0.03f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, OnSurface.copy(alpha = 0.05f))
     ) {
         Row(
             modifier = Modifier

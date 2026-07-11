@@ -81,7 +81,7 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(24.dp))
+                .background(OnSurface.copy(alpha = 0.05f), RoundedCornerShape(24.dp))
                 .padding(4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
@@ -124,7 +124,7 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     IconButton(
                         onClick = { viewModel.clearCalculationsAndReseed() },
-                        modifier = Modifier.background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                        modifier = Modifier.background(OnSurface.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
                     ) {
                         Icon(imageVector = Icons.Default.Refresh, contentDescription = "Resetar Tabela", tint = OnSurfaceVariant)
                     }
@@ -146,7 +146,7 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(SurfaceContainer, RoundedCornerShape(12.dp))
-                    .border(0.5.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
+                    .border(0.5.dp, OnSurface.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
                     .padding(12.dp)
             ) {
                 Row(
@@ -282,7 +282,7 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                             }
 
                             Spacer(modifier = Modifier.height(12.dp))
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 1.dp)
+                            HorizontalDivider(color = OnSurface.copy(alpha = 0.08f), thickness = 1.dp)
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Row(
@@ -292,8 +292,8 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(12.dp))
-                                        .border(0.5.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                                        .background(OnSurface.copy(alpha = 0.03f), RoundedCornerShape(12.dp))
+                                        .border(0.5.dp, OnSurface.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
                                         .padding(10.dp)
                                 ) {
                                     Column {
@@ -317,8 +317,8 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(12.dp))
-                                        .border(0.5.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                                        .background(OnSurface.copy(alpha = 0.03f), RoundedCornerShape(12.dp))
+                                        .border(0.5.dp, OnSurface.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
                                         .padding(10.dp)
                                 ) {
                                     Column {
@@ -345,7 +345,7 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(8.dp))
+                                    .background(OnSurface.copy(alpha = 0.02f), RoundedCornerShape(8.dp))
                                     .padding(8.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
@@ -376,8 +376,8 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                     .fillMaxWidth()
                     .padding(vertical = 4.dp),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.02f)),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                colors = CardDefaults.cardColors(containerColor = OnSurface.copy(alpha = 0.02f)),
+                border = BorderStroke(1.dp, OnSurface.copy(alpha = 0.08f))
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -387,8 +387,8 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(12.dp))
-                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                            .background(OnSurface.copy(alpha = 0.04f), RoundedCornerShape(12.dp))
+                            .border(1.dp, OnSurface.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
                             .padding(16.dp),
                         contentAlignment = Alignment.CenterEnd
                     ) {
@@ -450,7 +450,7 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                                                     isClear || isDelete -> ErrorColor.copy(alpha = 0.15f)
                                                     isOp || isPercent || isSign -> Primary.copy(alpha = 0.15f)
                                                     isEqual -> Primary
-                                                    else -> Color.White.copy(alpha = 0.05f)
+                                                    else -> OnSurface.copy(alpha = 0.05f)
                                                 }
                                             )
                                             .border(
@@ -460,7 +460,7 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                                                     isClear || isDelete -> ErrorColor.copy(alpha = 0.3f)
                                                     isOp || isPercent || isSign -> Primary.copy(alpha = 0.3f)
                                                     isEqual -> Primary
-                                                    else -> Color.White.copy(alpha = 0.08f)
+                                                    else -> OnSurface.copy(alpha = 0.08f)
                                                 },
                                                 RoundedCornerShape(12.dp)
                                             )
@@ -592,7 +592,7 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                             focusedTextColor = OnSurface,
                             unfocusedTextColor = OnSurface,
                             focusedBorderColor = Primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                            unfocusedBorderColor = OnSurface.copy(alpha = 0.12f)
                         ),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -607,7 +607,7 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                             focusedTextColor = OnSurface,
                             unfocusedTextColor = OnSurface,
                             focusedBorderColor = Primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                            unfocusedBorderColor = OnSurface.copy(alpha = 0.12f)
                         ),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -623,7 +623,7 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                             focusedTextColor = OnSurface,
                             unfocusedTextColor = OnSurface,
                             focusedBorderColor = Primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                            unfocusedBorderColor = OnSurface.copy(alpha = 0.12f)
                         ),
                         prefix = { Text("R$ ", color = Primary) },
                         modifier = Modifier.fillMaxWidth(),
@@ -640,7 +640,7 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                             focusedTextColor = OnSurface,
                             unfocusedTextColor = OnSurface,
                             focusedBorderColor = Primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                            unfocusedBorderColor = OnSurface.copy(alpha = 0.12f)
                         ),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -694,7 +694,7 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                             focusedTextColor = OnSurface,
                             unfocusedTextColor = OnSurface,
                             focusedBorderColor = Primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                            unfocusedBorderColor = OnSurface.copy(alpha = 0.12f)
                         ),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -708,7 +708,7 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                             focusedTextColor = OnSurface,
                             unfocusedTextColor = OnSurface,
                             focusedBorderColor = Primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                            unfocusedBorderColor = OnSurface.copy(alpha = 0.12f)
                         ),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -723,7 +723,7 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                             focusedTextColor = OnSurface,
                             unfocusedTextColor = OnSurface,
                             focusedBorderColor = Primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                            unfocusedBorderColor = OnSurface.copy(alpha = 0.12f)
                         ),
                         prefix = { Text("R$ ", color = Primary) },
                         modifier = Modifier.fillMaxWidth(),
@@ -739,7 +739,7 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                             focusedTextColor = OnSurface,
                             unfocusedTextColor = OnSurface,
                             focusedBorderColor = Primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                            unfocusedBorderColor = OnSurface.copy(alpha = 0.12f)
                         ),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -758,7 +758,7 @@ fun CalculationsScreen(viewModel: TransactionViewModel) {
                         colors = ButtonDefaults.buttonColors(containerColor = ErrorColor),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Text("Excluir", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Excluir", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                     }
                     Button(
                         onClick = {

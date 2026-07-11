@@ -173,7 +173,7 @@ fun TransactionListItem(
                     Spacer(modifier = Modifier.height(4.dp))
                     Box(
                         modifier = Modifier
-                            .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(4.dp))
+                            .background(OnSurface.copy(alpha = 0.04f), RoundedCornerShape(4.dp))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
@@ -478,11 +478,11 @@ fun TransactionsScreen(
                         modifier = Modifier
                             .clip(RoundedCornerShape(32.dp))
                             .background(
-                                if (isSelectedAll) Primary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f)
+                                if (isSelectedAll) Primary.copy(alpha = 0.15f) else OnSurface.copy(alpha = 0.05f)
                             )
                             .border(
                                 1.dp,
-                                if (isSelectedAll) Primary.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.1f),
+                                if (isSelectedAll) Primary.copy(alpha = 0.5f) else OnSurface.copy(alpha = 0.1f),
                                 RoundedCornerShape(32.dp)
                             )
                             .clickable { selectedWeekTab = "" }
@@ -502,11 +502,11 @@ fun TransactionsScreen(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(32.dp))
                                 .background(
-                                    if (isSelected) Primary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f)
+                                    if (isSelected) Primary.copy(alpha = 0.15f) else OnSurface.copy(alpha = 0.05f)
                                 )
                                 .border(
                                     1.dp,
-                                    if (isSelected) Primary.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.1f),
+                                    if (isSelected) Primary.copy(alpha = 0.5f) else OnSurface.copy(alpha = 0.1f),
                                     RoundedCornerShape(32.dp)
                                 )
                                 .clickable { selectedWeekTab = week }

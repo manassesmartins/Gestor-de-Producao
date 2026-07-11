@@ -113,7 +113,7 @@ fun NewTransactionScreen(
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.White.copy(alpha = 0.05f)
+                containerColor = OnSurface.copy(alpha = 0.05f)
             ),
             modifier = Modifier.drawBehindGlassBorder()
         )
@@ -185,9 +185,9 @@ fun NewTransactionScreen(
                                     focusedTextColor = OnSurface,
                                     unfocusedTextColor = OnSurface,
                                     focusedBorderColor = Primary,
-                                    unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
-                                    focusedContainerColor = Color.White.copy(alpha = 0.04f),
-                                    unfocusedContainerColor = Color.White.copy(alpha = 0.04f)
+                                    unfocusedBorderColor = OnSurface.copy(alpha = 0.12f),
+                                    focusedContainerColor = OnSurface.copy(alpha = 0.04f),
+                                    unfocusedContainerColor = OnSurface.copy(alpha = 0.04f)
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -199,7 +199,7 @@ fun NewTransactionScreen(
                             ExposedDropdownMenu(
                                 expanded = expandedCategoryDropdown,
                                 onDismissRequest = { expandedCategoryDropdown = false },
-                                modifier = Modifier.background(SurfaceDark).border(1.dp, Color.White.copy(alpha = 0.08f))
+                                modifier = Modifier.background(SurfaceDark).border(1.dp, OnSurface.copy(alpha = 0.08f))
                             ) {
                                 if (existingCategoryNames.isEmpty()) {
                                     DropdownMenuItem(
@@ -253,9 +253,9 @@ fun NewTransactionScreen(
                                 focusedTextColor = OnSurface,
                                 unfocusedTextColor = OnSurface,
                                 focusedBorderColor = Primary,
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
-                                focusedContainerColor = Color.White.copy(alpha = 0.04f),
-                                unfocusedContainerColor = Color.White.copy(alpha = 0.04f)
+                                unfocusedBorderColor = OnSurface.copy(alpha = 0.12f),
+                                focusedContainerColor = OnSurface.copy(alpha = 0.04f),
+                                unfocusedContainerColor = OnSurface.copy(alpha = 0.04f)
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -267,7 +267,7 @@ fun NewTransactionScreen(
                             ExposedDropdownMenu(
                                 expanded = expandedDescDropdown,
                                 onDismissRequest = { expandedDescDropdown = false },
-                                modifier = Modifier.background(SurfaceDark).border(1.dp, Color.White.copy(alpha = 0.08f))
+                                modifier = Modifier.background(SurfaceDark).border(1.dp, OnSurface.copy(alpha = 0.08f))
                             ) {
                                 existingExpenses.forEach { exp ->
                                     DropdownMenuItem(
@@ -340,9 +340,9 @@ fun NewTransactionScreen(
                             focusedTextColor = OnSurface,
                             unfocusedTextColor = OnSurface,
                             focusedBorderColor = Primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
-                            focusedContainerColor = Color.White.copy(alpha = 0.04f),
-                            unfocusedContainerColor = Color.White.copy(alpha = 0.04f)
+                            unfocusedBorderColor = OnSurface.copy(alpha = 0.12f),
+                            focusedContainerColor = OnSurface.copy(alpha = 0.04f),
+                            unfocusedContainerColor = OnSurface.copy(alpha = 0.04f)
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -386,11 +386,11 @@ fun NewTransactionScreen(
                                 unfocusedTextColor = OnSurface,
                                 disabledTextColor = OnSurface,
                                 focusedBorderColor = Primary,
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
-                                disabledBorderColor = Color.White.copy(alpha = 0.12f),
-                                focusedContainerColor = Color.White.copy(alpha = 0.04f),
-                                unfocusedContainerColor = Color.White.copy(alpha = 0.04f),
-                                disabledContainerColor = Color.White.copy(alpha = 0.04f)
+                                unfocusedBorderColor = OnSurface.copy(alpha = 0.12f),
+                                disabledBorderColor = OnSurface.copy(alpha = 0.12f),
+                                focusedContainerColor = OnSurface.copy(alpha = 0.04f),
+                                unfocusedContainerColor = OnSurface.copy(alpha = 0.04f),
+                                disabledContainerColor = OnSurface.copy(alpha = 0.04f)
                             ),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp)
@@ -419,11 +419,11 @@ fun NewTransactionScreen(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(32.dp))
                                     .background(
-                                        if (isSelected) Primary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f)
+                                        if (isSelected) Primary.copy(alpha = 0.15f) else OnSurface.copy(alpha = 0.05f)
                                     )
                                     .border(
                                         1.dp,
-                                        if (isSelected) Primary.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.1f),
+                                        if (isSelected) Primary.copy(alpha = 0.5f) else OnSurface.copy(alpha = 0.1f),
                                         RoundedCornerShape(32.dp)
                                     )
                                     .clickable { selectedWeek = w }
@@ -489,7 +489,7 @@ fun NewTransactionScreen(
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = OnSurfaceVariant
                         ),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                        border = BorderStroke(1.dp, OnSurface.copy(alpha = 0.12f)),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -516,8 +516,8 @@ fun NewTransactionScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color.White.copy(alpha = 0.05f))
-                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                            .background(OnSurface.copy(alpha = 0.05f))
+                            .border(1.dp, OnSurface.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
                             .padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
@@ -605,7 +605,7 @@ fun NewTransactionScreen(
                             }
                             
                             if (index < recentExpenses.lastIndex) {
-                                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.5.dp)
+                                HorizontalDivider(color = OnSurface.copy(alpha = 0.08f), thickness = 0.5.dp)
                             }
                         }
                     }
@@ -661,7 +661,7 @@ fun NewTransactionScreen(
                             focusedTextColor = OnSurface,
                             unfocusedTextColor = OnSurface,
                             focusedBorderColor = Primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                            unfocusedBorderColor = OnSurface.copy(alpha = 0.12f)
                         ),
                         singleLine = true
                     )
@@ -716,7 +716,7 @@ fun NewTransactionScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ErrorColor)
                 ) {
-                    Text("Excluir", color = Color.White)
+                    Text("Excluir", color = OnPrimary)
                 }
             },
             dismissButton = {

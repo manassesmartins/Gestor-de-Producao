@@ -242,7 +242,7 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
                         onClick = { showDatePickerDialog = true },
                         modifier = Modifier
                             .clip(CircleShape)
-                            .background(if (selectedFilterDateMillis != null) Primary.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f))
+                            .background(if (selectedFilterDateMillis != null) Primary.copy(alpha = 0.2f) else OnSurface.copy(alpha = 0.05f))
                     ) {
                         Icon(
                             imageVector = Icons.Default.DateRange,
@@ -444,8 +444,8 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(32.dp))
-                                .background(if (isSelected) Primary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f))
-                                .border(1.dp, if (isSelected) Primary.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.1f), RoundedCornerShape(32.dp))
+                                .background(if (isSelected) Primary.copy(alpha = 0.15f) else OnSurface.copy(alpha = 0.05f))
+                                .border(1.dp, if (isSelected) Primary.copy(alpha = 0.5f) else OnSurface.copy(alpha = 0.1f), RoundedCornerShape(32.dp))
                                 .clickable { selectedOrderWeek = w }
                                 .padding(horizontal = 14.dp, vertical = 8.dp)
                         ) {
@@ -586,7 +586,7 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                            HorizontalDivider(color = OnSurface.copy(alpha = 0.05f))
                             Spacer(modifier = Modifier.height(10.dp))
 
                             // List all sub-items in the group
@@ -675,12 +675,12 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
                                     }
                                 }
                                 if (order != group.last()) {
-                                    HorizontalDivider(color = Color.White.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 4.dp))
+                                    HorizontalDivider(color = OnSurface.copy(alpha = 0.05f), modifier = Modifier.padding(vertical = 4.dp))
                                 }
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                            HorizontalDivider(color = OnSurface.copy(alpha = 0.05f))
                             Spacer(modifier = Modifier.height(10.dp))
 
                             Row(
@@ -943,7 +943,7 @@ fun OrderAddEditDialog(
                                 focusedTextColor = OnSurface,
                                 unfocusedTextColor = OnSurface,
                                 focusedBorderColor = Primary,
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                                unfocusedBorderColor = OnSurface.copy(alpha = 0.12f)
                             ),
                             modifier = Modifier.fillMaxWidth().menuAnchor()
                         )
@@ -951,7 +951,7 @@ fun OrderAddEditDialog(
                         ExposedDropdownMenu(
                             expanded = expandedNameDropdown,
                             onDismissRequest = { expandedNameDropdown = false },
-                            modifier = Modifier.background(SurfaceContainerHigh).border(1.dp, Color.White.copy(alpha = 0.08f))
+                            modifier = Modifier.background(SurfaceContainerHigh).border(1.dp, OnSurface.copy(alpha = 0.08f))
                         ) {
                             existingClients.forEach { client ->
                                 DropdownMenuItem(
@@ -985,7 +985,7 @@ fun OrderAddEditDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.05f))
+                            .background(OnSurface.copy(alpha = 0.05f))
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -1009,7 +1009,7 @@ fun OrderAddEditDialog(
                                 Icon(imageVector = Icons.Default.Add, contentDescription = "Preencher dados", modifier = Modifier.size(16.dp), tint = Primary)
                             }
                             if (histOrder != clientHistory.last()) {
-                                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                                HorizontalDivider(color = OnSurface.copy(alpha = 0.05f))
                             }
                         }
                     }
@@ -1035,7 +1035,7 @@ fun OrderAddEditDialog(
                                 focusedTextColor = OnSurface,
                                 unfocusedTextColor = OnSurface,
                                 focusedBorderColor = Primary,
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                                unfocusedBorderColor = OnSurface.copy(alpha = 0.12f)
                             ),
                             modifier = Modifier.fillMaxWidth().menuAnchor()
                         )
@@ -1043,7 +1043,7 @@ fun OrderAddEditDialog(
                         ExposedDropdownMenu(
                             expanded = expandedModelDropdown,
                             onDismissRequest = { expandedModelDropdown = false },
-                            modifier = Modifier.background(SurfaceContainerHigh).border(1.dp, Color.White.copy(alpha = 0.08f))
+                            modifier = Modifier.background(SurfaceContainerHigh).border(1.dp, OnSurface.copy(alpha = 0.08f))
                         ) {
                             existingModels.forEach { itemModel ->
                                 DropdownMenuItem(
@@ -1081,8 +1081,8 @@ fun OrderAddEditDialog(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isSelected) Primary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f))
-                                    .border(1.dp, if (isSelected) Primary else Color.White.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) Primary.copy(alpha = 0.15f) else OnSurface.copy(alpha = 0.05f))
+                                    .border(1.dp, if (isSelected) Primary else OnSurface.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
                                     .clickable { size = s }
                                     .padding(horizontal = 14.dp, vertical = 8.dp)
                             ) {
@@ -1105,7 +1105,7 @@ fun OrderAddEditDialog(
                             focusedTextColor = OnSurface,
                             unfocusedTextColor = OnSurface,
                             focusedBorderColor = Primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                            unfocusedBorderColor = OnSurface.copy(alpha = 0.12f)
                         ),
                         modifier = Modifier.weight(1f)
                     )
@@ -1119,7 +1119,7 @@ fun OrderAddEditDialog(
                             focusedTextColor = OnSurface,
                             unfocusedTextColor = OnSurface,
                             focusedBorderColor = Primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                            unfocusedBorderColor = OnSurface.copy(alpha = 0.12f)
                         ),
                         prefix = { Text("R$", color = Primary) },
                         modifier = Modifier.weight(1.3f)
@@ -1130,7 +1130,7 @@ fun OrderAddEditDialog(
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Data Agendada", fontSize = 11.sp, color = OnSurfaceVariant, fontWeight = FontWeight.Bold)
                     Row(
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color.White.copy(0.05f)).clickable { showDatePicker = true }.padding(12.dp),
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(OnSurface.copy(0.05f)).clickable { showDatePicker = true }.padding(12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -1151,7 +1151,7 @@ fun OrderAddEditDialog(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(if (isSelected) Tertiary.copy(alpha = 0.2f) else Color.Transparent)
-                                    .border(1.dp, if (isSelected) Tertiary else Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                    .border(1.dp, if (isSelected) Tertiary else OnSurface.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
                                     .clickable { status = s }
                                     .padding(horizontal = 10.dp, vertical = 6.dp)
                             ) {
@@ -1161,7 +1161,7 @@ fun OrderAddEditDialog(
                     }
                 }
 
-                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                HorizontalDivider(color = OnSurface.copy(alpha = 0.08f))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1485,7 +1485,7 @@ fun OrderInvoiceDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Fechar", color = Color.Black)
+                Text("Fechar", color = OnSurfaceVariant)
             }
         }
     )

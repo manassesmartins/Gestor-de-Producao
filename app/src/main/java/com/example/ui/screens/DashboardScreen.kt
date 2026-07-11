@@ -268,7 +268,7 @@ fun DashboardScreen(
                     text = "Demonstrativo Financeiro Oficial",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    color = Color.White
+                    color = OnSurface
                 )
             },
             text = {
@@ -291,17 +291,17 @@ fun DashboardScreen(
                         color = OnSurfaceVariant
                     )
                     
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                    HorizontalDivider(color = OnSurface.copy(alpha = 0.1f))
                     
                     Text("RESUMO DOS INDICADORES:", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Primary)
-                    Text("• Faturamento Bruto (Encomendas): " + String.format(Locale("pt", "BR"), "R$ %,.2f", totalIn), fontSize = 12.sp, color = Color.White)
-                    Text("• Custos Operacionais (Insumos): " + String.format(Locale("pt", "BR"), "R$ %,.2f", totalOut), fontSize = 12.sp, color = Color.White)
+                    Text("• Faturamento Bruto (Encomendas): " + String.format(Locale("pt", "BR"), "R$ %,.2f", totalIn), fontSize = 12.sp, color = OnSurface)
+                    Text("• Custos Operacionais (Insumos): " + String.format(Locale("pt", "BR"), "R$ %,.2f", totalOut), fontSize = 12.sp, color = OnSurface)
                     Text("• Lucro Operacional Retido: " + String.format(Locale("pt", "BR"), "R$ %,.2f", bal), fontSize = 12.sp, color = Tertiary)
-                    Text("• Margem de Lucratividade: " + String.format(Locale("pt", "BR"), "%.2f%%", marginHtml), fontSize = 12.sp, color = Color.White)
-                    Text("• Volume Total Fabricado: " + countPieces + " peças", fontSize = 12.sp, color = Color.White)
-                    Text("• Custo Médio por Peça Produzida: " + String.format(Locale("pt", "BR"), "R$ %,.2f", costPiece), fontSize = 12.sp, color = Color.White)
+                    Text("• Margem de Lucratividade: " + String.format(Locale("pt", "BR"), "%.2f%%", marginHtml), fontSize = 12.sp, color = OnSurface)
+                    Text("• Volume Total Fabricado: " + countPieces + " peças", fontSize = 12.sp, color = OnSurface)
+                    Text("• Custo Médio por Peça Produzida: " + String.format(Locale("pt", "BR"), "R$ %,.2f", costPiece), fontSize = 12.sp, color = OnSurface)
 
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                    HorizontalDivider(color = OnSurface.copy(alpha = 0.1f))
                     
                     Text("DETALHAMENTO DE RATEIO DE GASTOS:", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Primary)
                     summary.categoryBreakdown.forEach { (cat, pct) ->
@@ -333,7 +333,7 @@ fun DashboardScreen(
                     Text("Voltar", color = OnSurfaceVariant)
                 }
             },
-            containerColor = Color(0xFF1E0E2E), // Deep grape background
+            containerColor = SurfaceDark,
             shape = RoundedCornerShape(24.dp)
         )
     }
@@ -2206,7 +2206,7 @@ fun InvestmentsSection(
     if (showAddDialog) {
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
-            title = { Text("Novo Investimento", fontWeight = FontWeight.Bold, color = Color.White) },
+            title = { Text("Novo Investimento", fontWeight = FontWeight.Bold, color = OnSurface) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Registre investimentos de longo prazo para realizar abatimentos (amortizações) parciais no caixa semanal.", fontSize = 12.sp, color = OnSurfaceVariant)
@@ -2260,7 +2260,7 @@ fun InvestmentsSection(
                     Text("Cancelar", color = OnSurfaceVariant)
                 }
             },
-            containerColor = Color(0xFF1E0E2E),
+            containerColor = SurfaceDark,
             shape = RoundedCornerShape(24.dp)
         )
     }
@@ -2269,7 +2269,7 @@ fun InvestmentsSection(
         val currentInv = showAbateDialog!!
         AlertDialog(
             onDismissRequest = { showAbateDialog = null },
-            title = { Text("Abater Valor de Investimento", fontWeight = FontWeight.Bold, color = Color.White) },
+            title = { Text("Abater Valor de Investimento", fontWeight = FontWeight.Bold, color = OnSurface) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Lançar um abatimento (amortização) de valor parcial de '${currentInv.description}'. O valor informado será deduzido do caixa como uma despesa na semana escolhida.", fontSize = 12.sp, color = OnSurfaceVariant)
@@ -2301,8 +2301,8 @@ fun InvestmentsSection(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(if (isSel) Primary.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f))
-                                    .border(1.dp, if (isSel) Primary else Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
+                                    .background(if (isSel) Primary.copy(alpha = 0.2f) else OnSurface.copy(alpha = 0.05f))
+                                    .border(1.dp, if (isSel) Primary else OnSurface.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
                                     .clickable { selectedWeekForAbatement = w }
                                     .padding(horizontal = 12.dp, vertical = 6.dp)
                             ) {
@@ -2335,7 +2335,7 @@ fun InvestmentsSection(
                     Text("Cancelar", color = OnSurfaceVariant)
                 }
             },
-            containerColor = Color(0xFF1E0E2E),
+            containerColor = SurfaceDark,
             shape = RoundedCornerShape(24.dp)
         )
     }
