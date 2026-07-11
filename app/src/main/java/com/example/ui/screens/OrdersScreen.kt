@@ -721,8 +721,8 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
                                     modifier = Modifier.height(34.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Share, 
-                                        contentDescription = null, 
+                                        imageVector = Icons.Default.PictureAsPdf,
+                                        contentDescription = null,
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
@@ -1377,7 +1377,7 @@ fun OrderInvoiceDialog(
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Share,
+                        imageVector = Icons.Default.PictureAsPdf,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )

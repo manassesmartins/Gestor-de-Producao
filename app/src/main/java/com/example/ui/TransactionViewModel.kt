@@ -640,8 +640,8 @@ class TransactionViewModel(
     private val _isAddingTransaction = MutableStateFlow(false)
     val isAddingTransaction: StateFlow<Boolean> = _isAddingTransaction.asStateFlow()
 
-    // Transaction filter tab ("Tudo", "Entradas", "Saídas")
-    private val _transactionFilter = MutableStateFlow("SAIDAS") // "TUDO", "ENTRADAS", "SAIDAS"
+    // Transaction filter tab ("Tudo", "Saídas")
+    private val _transactionFilter = MutableStateFlow("SAIDAS") // "TUDO", "SAIDAS"
     val transactionFilter: StateFlow<String> = _transactionFilter.asStateFlow()
 
     // Cloud Synchronicity Status

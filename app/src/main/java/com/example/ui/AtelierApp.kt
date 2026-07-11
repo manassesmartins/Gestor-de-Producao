@@ -319,7 +319,6 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
     val summary by viewModel.summary.collectAsStateWithLifecycle()
     val isCloudBackupEnabled by viewModel.isCloudBackupEnabled.collectAsStateWithLifecycle()
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
-    val filterTab by viewModel.transactionFilter.collectAsStateWithLifecycle()
 
     val pendingDelete by viewModel.showDeleteConfirmation.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -481,8 +480,6 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
                             AppTab.TRANSACTIONS -> TransactionsScreen(
                                 viewModel = viewModel,
                                 transactions = transactions,
-                                activeFilter = filterTab,
-                                onFilterChanged = { viewModel.setTransactionFilter(it) },
                                 onItemClick = { tx -> transactionForOptions = tx }
                             )
                             AppTab.ORDERS -> OrdersScreen(
@@ -675,16 +672,17 @@ fun MsModaIntimaApp(viewModel: TransactionViewModel) {
                             viewModel.setAddingTransaction(false)
                             transactionToEdit = null
                         },
-                        onSubmit = { id, desc, amount, cat, type, week ->
+                        onSubmit = { id, desc, amount, cat, type, week, selectedTimestamp ->
                             if (id != null) {
-                                val existing = allTransactions.find { it.id == id }
-                                val dateStr = existing?.dateString ?: ""
-                                val tstamp = existing?.timestamp
-                                viewModel.editTransaction(id, desc, amount, cat, type, dateStr, week, tstamp)
+                                val sdf = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale("pt", "BR"))
+                                val dateStr = sdf.format(java.util.Date(selectedTimestamp)).uppercase(java.util.Locale.getDefault())
+                                viewModel.editTransaction(id, desc, amount, cat, type, dateStr, week, selectedTimestamp)
                                 Toast.makeText(context, "Lançamento atualizado com sucesso!", Toast.LENGTH_SHORT).show()
                                 transactionToEdit = null
                             } else {
-                                viewModel.addTransaction(desc, amount, cat, type, week = week)
+                                val sdf = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale("pt", "BR"))
+                                val dateStr = sdf.format(java.util.Date(selectedTimestamp)).uppercase(java.util.Locale.getDefault())
+                                viewModel.addTransaction(desc, amount, cat, type, dateString = dateStr, week = week, timestamp = selectedTimestamp)
                                 Toast.makeText(context, "Lançamento salvo com sucesso!", Toast.LENGTH_SHORT).show()
                             }
                             viewModel.setAddingTransaction(false)

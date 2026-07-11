@@ -480,9 +480,9 @@ fun DashboardScreen(
                                 modifier = Modifier.height(36.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Share, // Export indicator
+                                    imageVector = Icons.Default.PictureAsPdf,
                                     contentDescription = "PDF",
-                                    tint = Secondary,
+                                    tint = Primary,
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))

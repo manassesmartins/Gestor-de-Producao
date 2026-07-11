@@ -298,8 +298,6 @@ fun TransactionGroupedRow(
 fun TransactionsScreen(
     viewModel: TransactionViewModel,
     transactions: List<TransactionEntity>,
-    activeFilter: String,
-    onFilterChanged: (String) -> Unit,
     onItemClick: (TransactionEntity) -> Unit
 ) {
     val Primary = MaterialTheme.colorScheme.primary
@@ -384,6 +382,19 @@ fun TransactionsScreen(
         }
     }
 
+    val availableWeeks = remember(filteredTransactionsForMonth) {
+        filteredTransactionsForMonth.map { it.week }.distinct().sorted()
+    }
+
+    var selectedWeekTab by remember(availableWeeks) {
+        mutableStateOf("")
+    }
+
+    val filteredTransactionsForWeek = remember(filteredTransactionsForMonth, selectedWeekTab) {
+        if (selectedWeekTab.isEmpty()) filteredTransactionsForMonth
+        else filteredTransactionsForMonth.filter { it.week == selectedWeekTab }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -448,46 +459,67 @@ fun TransactionsScreen(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // Large Horizontal Scrolling Filter Tabs
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val filters = listOf(
-                "TUDO" to "Tudo",
-                "ENTRADAS" to "Entradas",
-                "SAIDAS" to "Saídas"
-            )
+        // Week Filter Tabs
+        if (availableWeeks.isNotEmpty()) {
             Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                filters.forEach { (key, display) ->
-                    val isSelected = activeFilter == key
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val allWeeksLabel = "Tudo"
+                    val isSelectedAll = selectedWeekTab.isEmpty()
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(32.dp))
                             .background(
-                                if (isSelected) Primary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f)
+                                if (isSelectedAll) Primary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f)
                             )
                             .border(
                                 1.dp,
-                                if (isSelected) Primary.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.1f),
+                                if (isSelectedAll) Primary.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.1f),
                                 RoundedCornerShape(32.dp)
                             )
-                            .clickable { onFilterChanged(key) }
+                            .clickable { selectedWeekTab = "" }
                             .padding(horizontal = 14.dp, vertical = 8.dp)
-                            .testTag("filter_${key.lowercase()}")
+                            .testTag("filter_week_all")
                     ) {
                         Text(
-                            text = display,
+                            text = allWeeksLabel,
                             fontSize = 13.sp,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (isSelected) Primary else OnSurfaceVariant
+                            fontWeight = if (isSelectedAll) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isSelectedAll) Primary else OnSurfaceVariant
                         )
+                    }
+                    availableWeeks.forEach { week ->
+                        val isSelected = selectedWeekTab == week
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(32.dp))
+                                .background(
+                                    if (isSelected) Primary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f)
+                                )
+                                .border(
+                                    1.dp,
+                                    if (isSelected) Primary.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.1f),
+                                    RoundedCornerShape(32.dp)
+                                )
+                                .clickable { selectedWeekTab = week }
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                                .testTag("filter_week_$week")
+                        ) {
+                            Text(
+                                text = week,
+                                fontSize = 13.sp,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isSelected) Primary else OnSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -501,7 +533,7 @@ fun TransactionsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            if (filteredTransactionsForMonth.isEmpty()) {
+            if (filteredTransactionsForWeek.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
@@ -518,7 +550,7 @@ fun TransactionsScreen(
                     }
                 }
             } else {
-                val groupedByWeek = filteredTransactionsForMonth.groupBy { it.week }
+                val groupedByWeek = filteredTransactionsForWeek.groupBy { it.week }
                 groupedByWeek.forEach { (weekName, weekTransactions) ->
                     item(key = "header_$weekName") {
                         Row(

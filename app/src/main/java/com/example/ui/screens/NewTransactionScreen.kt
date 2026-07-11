@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.*
 import com.example.ui.theme.*
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,7 +38,7 @@ fun NewTransactionScreen(
     viewModel: TransactionViewModel,
     isCloudBackupEnabled: Boolean,
     onDismiss: () -> Unit,
-    onSubmit: (Long?, String, Double, String, String, String) -> Unit,
+    onSubmit: (Long?, String, Double, String, String, String, Long) -> Unit,
     transactionToEdit: TransactionEntity? = null
 ) {
     val Primary = MaterialTheme.colorScheme.primary
@@ -57,6 +59,12 @@ fun NewTransactionScreen(
     val type = currentEditingTransaction?.type ?: "OUTFLOW"
     val toggleSync = remember(currentEditingTransaction) { mutableStateOf(isCloudBackupEnabled) }
     var selectedWeek by remember(currentEditingTransaction) { mutableStateOf(currentEditingTransaction?.week ?: "1ª Semana") }
+
+    var selectedDateMillis by remember(currentEditingTransaction) {
+        mutableStateOf(currentEditingTransaction?.timestamp ?: System.currentTimeMillis())
+    }
+    var showDatePicker by remember { mutableStateOf(false) }
+    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale("pt", "BR")) }
 
     val transactions by viewModel.allTransactions.collectAsStateWithLifecycle(emptyList())
     val existingExpenses = remember(transactions) {
@@ -354,6 +362,53 @@ fun NewTransactionScreen(
                 }
             }
 
+            // Date Selection
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "DATA DO REGISTRO",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = OnSurfaceVariant,
+                        letterSpacing = 0.5.sp
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { showDatePicker = true }
+                            .testTag("date_input")
+                    ) {
+                        OutlinedTextField(
+                            value = dateFormatter.format(Date(selectedDateMillis)),
+                            onValueChange = {},
+                            readOnly = true,
+                            enabled = false,
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.DateRange,
+                                    contentDescription = "Selecionar Data",
+                                    tint = Primary
+                                )
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = OnSurface,
+                                unfocusedTextColor = OnSurface,
+                                disabledTextColor = OnSurface,
+                                focusedBorderColor = Primary,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
+                                disabledBorderColor = Color.White.copy(alpha = 0.12f),
+                                focusedContainerColor = Color.White.copy(alpha = 0.04f),
+                                unfocusedContainerColor = Color.White.copy(alpha = 0.04f),
+                                disabledContainerColor = Color.White.copy(alpha = 0.04f)
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+                }
+            }
+
             // Week Selection row of Chips
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -407,7 +462,7 @@ fun NewTransactionScreen(
                         if (categoryText.isNotBlank() && amt > 0) {
                             // If description is empty, default it to the category name
                             val finalDesc = description.ifBlank { categoryText }
-                            onSubmit(currentEditingTransaction?.id, finalDesc, amt, categoryText.trim(), type, selectedWeek)
+                            onSubmit(currentEditingTransaction?.id, finalDesc, amt, categoryText.trim(), type, selectedWeek, selectedDateMillis)
                             currentEditingTransaction = null
                         }
                     },
@@ -680,5 +735,29 @@ fun NewTransactionScreen(
                 }
             }
         )
+    }
+
+    // Date Picker Dialog
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDateMillis)
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { selectedDateMillis = it }
+                    showDatePicker = false
+                }) {
+                    Text("OK", color = Primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancelar", color = OnSurfaceVariant)
+                }
+            },
+            colors = DatePickerDefaults.colors(containerColor = SurfaceContainerHigh)
+        ) {
+            DatePicker(state = datePickerState)
+        }
     }
 }
