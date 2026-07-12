@@ -420,7 +420,7 @@ fun generateInvoicePdfAndShare(
             type = "application/pdf"
             putExtra(Intent.EXTRA_TITLE, "Compartilhar Comanda de Entrega")
             putExtra(Intent.EXTRA_SUBJECT, "Comanda Semanal - $brandName")
-            putExtra(Intent.EXTRA_TEXT, "Prezado cliente, segue fechamento e comanda da semana referente à sua produção de confecções da marca $brandName.")
+            putExtra(Intent.EXTRA_TEXT, "Aqui a comanda do seu pedido")
             putExtra(Intent.EXTRA_STREAM, comandaUri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
@@ -465,7 +465,7 @@ fun generateInvoiceImageAndShare(
             type = "image/jpeg"
             putExtra(Intent.EXTRA_TITLE, "Compartilhar Comanda de Entrega")
             putExtra(Intent.EXTRA_SUBJECT, "Comanda Semanal - $brandName")
-            putExtra(Intent.EXTRA_TEXT, "Prezado cliente, segue fechamento e comanda da semana referente à sua produção de confecções da marca $brandName.")
+            putExtra(Intent.EXTRA_TEXT, "Aqui a comanda do seu pedido")
             putExtra(Intent.EXTRA_STREAM, imageUri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }

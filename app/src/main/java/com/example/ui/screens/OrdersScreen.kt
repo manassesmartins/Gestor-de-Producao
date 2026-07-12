@@ -1337,7 +1337,7 @@ fun OrderInvoiceDialog(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "DOCUMENTO DE FECHAMENTO SEMANAL",
+                        text = "COMANDA DO PEDIDO",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = OnSurfaceVariant
