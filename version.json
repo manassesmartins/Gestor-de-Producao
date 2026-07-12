@@ -1,6 +1,5 @@
 {
-  "version": "1.20.100",
-  "changelog": "Build automático: Commit 	modified:   app/src/main/java/com/example/ui/screens/OrdersScreen.kt
-	modified:   app/src/main/java/com/example/ui/utils/PdfGenerator.kt",
+  "version": "1.20.101",
+  "changelog": "Build automático: Commit 	modified:   app/src/main/java/com/example/ui/screens/OrdersScreen.kt",
   "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
 }
