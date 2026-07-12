@@ -1051,8 +1051,9 @@ fun OrderAddEditDialog(
                                     onClick = {
                                         model = itemModel
                                         val matchedProduct = productModels.find { it.name.trim().equals(itemModel.trim(), ignoreCase = true) }
-                                        if (matchedProduct != null && matchedProduct.price > 0) {
-                                            priceText = matchedProduct.price.toString()
+                                        if (matchedProduct != null) {
+                                            val sizePrice = matchedProduct.getSizePrice(size)
+                                            if (sizePrice > 0) priceText = sizePrice.toString()
                                         }
                                         expandedModelDropdown = false
                                     }
@@ -1083,7 +1084,14 @@ fun OrderAddEditDialog(
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(if (isSelected) Primary.copy(alpha = 0.15f) else OnSurface.copy(alpha = 0.05f))
                                     .border(1.dp, if (isSelected) Primary else OnSurface.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-                                    .clickable { size = s }
+                                    .clickable {
+                                        size = s
+                                        val matchedProduct = productModels.find { it.name.trim().equals(model.trim(), ignoreCase = true) }
+                                        if (matchedProduct != null) {
+                                            val sizePrice = matchedProduct.getSizePrice(s)
+                                            if (sizePrice > 0) priceText = sizePrice.toString()
+                                        }
+                                    }
                                     .padding(horizontal = 14.dp, vertical = 8.dp)
                             ) {
                                 Text(s, color = if (isSelected) Primary else OnSurface, fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -1262,7 +1270,7 @@ fun OrderAddEditDialog(
                     onClick = {
                         val price = newModelPrice.replace(',', '.').toDoubleOrNull() ?: 0.0
                         if (newModelName.trim().isNotEmpty()) {
-                            viewModel.addProductModel(newModelName.trim(), price)
+                            viewModel.addProductModel(newModelName.trim(), price, "")
                             model = newModelName.trim()
                             if (price > 0) priceText = price.toString()
                             showNewModelDialog = false

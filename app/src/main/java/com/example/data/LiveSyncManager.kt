@@ -474,7 +474,8 @@ object LiveSyncManager {
                     repo.insertProductModel(ProductModelEntity(
                         id = mJson.optLong("id", 0),
                         name = mJson.optString("name", ""),
-                        price = mJson.optDouble("price", 0.0)
+                        price = mJson.optDouble("price", 0.0),
+                        sizePrices = mJson.optString("sizePrices", "")
                     ))
                 } catch (e: Exception) { Log.w(TAG, "Error inserting model", e) }
             }
@@ -579,7 +580,8 @@ object LiveSyncManager {
                         "insert" -> repo.insertProductModel(ProductModelEntity(
                             id = data.optLong("id", 0),
                             name = data.optString("name", ""),
-                            price = data.optDouble("price", 0.0)
+                            price = data.optDouble("price", 0.0),
+                            sizePrices = data.optString("sizePrices", "")
                         ))
                         "delete" -> repo.deleteProductModelById(data.optLong("id", 0))
                     }

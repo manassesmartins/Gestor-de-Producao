@@ -665,8 +665,8 @@ fun MasterRegistriesTab(viewModel: TransactionViewModel) {
         AddEditProductModelDialog(
             model = null,
             onDismiss = { showAddModelDialog = false },
-            onSave = { name, price ->
-                viewModel.addProductModel(name, price)
+            onSave = { name, price, sizePrices ->
+                viewModel.addProductModel(name, price, sizePrices)
                 showAddModelDialog = false
                 Toast.makeText(context, "Modelo adicionado com sucesso!", Toast.LENGTH_SHORT).show()
             }
@@ -676,8 +676,8 @@ fun MasterRegistriesTab(viewModel: TransactionViewModel) {
         AddEditProductModelDialog(
             model = model,
             onDismiss = { showAddEditModelDialog = null },
-            onSave = { name, price ->
-                viewModel.updateProductModel(model.id, name, price)
+            onSave = { name, price, sizePrices ->
+                viewModel.updateProductModel(model.id, name, price, sizePrices)
                 showAddEditModelDialog = null
                 Toast.makeText(context, "Modelo de peça atualizado!", Toast.LENGTH_SHORT).show()
             }
@@ -851,17 +851,38 @@ fun AddEditEmployeeDialog(
 fun AddEditProductModelDialog(
     model: ProductModelEntity?,
     onDismiss: () -> Unit,
-    onSave: (String, Double) -> Unit
+    onSave: (String, Double, String) -> Unit
 ) {
     var name by remember { mutableStateOf(model?.name ?: "") }
     var priceText by remember { mutableStateOf(model?.price?.toString() ?: "") }
+
+    val initialSizePrices = remember {
+        val map = mutableMapOf<String, String>()
+        if (model?.sizePrices?.isNotBlank() == true) {
+            try {
+                model.sizePrices.split(";").forEach {
+                    val parts = it.split(":")
+                    if (parts.size == 2) map[parts[0].trim()] = parts[1].trim()
+                }
+            } catch (_: Exception) {}
+        }
+        map
+    }
+    var sizeP by remember { mutableStateOf(initialSizePrices["P"] ?: "") }
+    var sizeM by remember { mutableStateOf(initialSizePrices["M"] ?: "") }
+    var sizeG by remember { mutableStateOf(initialSizePrices["G"] ?: "") }
+    var sizeGG by remember { mutableStateOf(initialSizePrices["GG"] ?: "") }
+    var sizeU by remember { mutableStateOf(initialSizePrices["U"] ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (model == null) "Novo Modelo de Peça" else "Editar Modelo", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) },
         containerColor = MaterialTheme.colorScheme.surfaceVariant,
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -871,18 +892,45 @@ fun AddEditProductModelDialog(
                 OutlinedTextField(
                     value = priceText,
                     onValueChange = { priceText = it },
-                    label = { Text("Valor Unitário (R$)", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    label = { Text("Valor Unitário Padrão (R$)", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     prefix = { Text("R$", color = MaterialTheme.colorScheme.primary) },
                     colors = OutlinedTextFieldDefaults.colors(focusedTextColor = MaterialTheme.colorScheme.onSurface, unfocusedTextColor = MaterialTheme.colorScheme.onSurface)
                 )
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+
+                Text("Preço por Tamanho", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+
+                listOf("P" to sizeP to { v: String -> sizeP = v },
+                    "M" to sizeM to { v: String -> sizeM = v },
+                    "G" to sizeG to { v: String -> sizeG = v },
+                    "GG" to sizeGG to { v: String -> sizeGG = v },
+                    "U" to sizeU to { v: String -> sizeU = v }
+                ).forEach { (pair, setter) ->
+                    val (sizeLabel, currentValue) = pair
+                    OutlinedTextField(
+                        value = currentValue,
+                        onValueChange = { setter(it) },
+                        label = { Text("Tamanho $sizeLabel", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        prefix = { Text("R$", color = MaterialTheme.colorScheme.primary) },
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = MaterialTheme.colorScheme.onSurface, unfocusedTextColor = MaterialTheme.colorScheme.onSurface),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
                     val price = priceText.replace(',', '.').toDoubleOrNull() ?: 0.0
-                    if (name.trim().isNotEmpty()) onSave(name.trim(), price)
+                    val sizes = mutableMapOf<String, Double>()
+                    mapOf("P" to sizeP, "M" to sizeM, "G" to sizeG, "GG" to sizeGG, "U" to sizeU).forEach { (k, v) ->
+                        v.replace(',', '.').toDoubleOrNull()?.let { sizes[k] = it }
+                    }
+                    val sizePricesStr = ProductModelEntity.buildSizePrices(sizes)
+                    if (name.trim().isNotEmpty()) onSave(name.trim(), price, sizePricesStr)
                 },
                 enabled = name.trim().isNotEmpty()
             ) {
