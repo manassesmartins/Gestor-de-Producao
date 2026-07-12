@@ -1,5 +1,5 @@
 {
-  "version": "1.20.101",
-  "changelog": "Build automático: Commit 	modified:   app/src/main/java/com/example/ui/screens/OrdersScreen.kt",
+  "version": "1.20.103",
+  "changelog": "Build automático: Commit 	modified:   app/src/main/java/com/example/ui/screens/EmployeesScreen.kt",
   "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
 }
