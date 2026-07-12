@@ -1289,6 +1289,10 @@ fun OrderInvoiceDialog(
     val dateFormatter = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("pt", "BR")) }
     val Primary = MaterialTheme.colorScheme.primary
     val OnPrimary = MaterialTheme.colorScheme.onPrimary
+    val Tertiary = MaterialTheme.colorScheme.tertiary
+    val OnSurface = MaterialTheme.colorScheme.onSurface
+    val OnSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val SurfaceDark = MaterialTheme.colorScheme.background
     
     val matchingOrders = remember(order, allOrders) {
         val orderMonthYear = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(order.timestamp))
@@ -1306,15 +1310,18 @@ fun OrderInvoiceDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("Comanda - $brandName", color = Tertiary, fontWeight = FontWeight.Bold)
+            Text(
+                text = "Comanda - $brandName",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = OnSurface
+            )
         },
-        containerColor = Color.White, // Paper White look!
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp)
-                    .background(Color.White),
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Column(
@@ -1325,7 +1332,7 @@ fun OrderInvoiceDialog(
                         text = brandName.uppercase(Locale.getDefault()),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.Black,
+                        color = OnSurface,
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -1333,11 +1340,11 @@ fun OrderInvoiceDialog(
                         text = "DOCUMENTO DE FECHAMENTO SEMANAL",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Gray
+                        color = OnSurfaceVariant
                     )
                     Text(
                         text = "--------------------------------------------------------",
-                        color = Color.Black,
+                        color = OnSurface,
                         fontSize = 10.sp
                     )
                 }
@@ -1346,30 +1353,30 @@ fun OrderInvoiceDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("CLIENTE:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                    Text(order.clientName.uppercase(Locale.getDefault()), fontSize = 11.sp, color = Color.Black)
+                    Text("CLIENTE:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = OnSurface)
+                    Text(order.clientName.uppercase(Locale.getDefault()), fontSize = 11.sp, color = OnSurface)
                 }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("SEMANA DO REGISTRO:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                    Text(order.week, fontSize = 11.sp, color = Color.Black)
+                    Text("SEMANA DO REGISTRO:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = OnSurface)
+                    Text(order.week, fontSize = 11.sp, color = OnSurface)
                 }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("DATA DE EMISSÃO:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                    Text("DATA DE EMISSÃO:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = OnSurface)
                     val formattedDate = dateFormatter.format(Date(order.timestamp))
-                    Text(formattedDate, fontSize = 11.sp, color = Color.Black)
+                    Text(formattedDate, fontSize = 11.sp, color = OnSurface)
                 }
 
                 Text(
                     text = "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -",
-                    color = Color.Black,
+                    color = OnSurface,
                     fontSize = 10.sp,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center
@@ -1381,8 +1388,8 @@ fun OrderInvoiceDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("ESPECIFICAÇÕES", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                        Text("TOTAL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        Text("ESPECIFICAÇÕES", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = OnSurface)
+                        Text("TOTAL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = OnSurface)
                     }
 
                     matchingOrders.forEach { item ->
@@ -1394,19 +1401,19 @@ fun OrderInvoiceDialog(
                                 Text(
                                     text = "${item.pantyType} (Tam ${item.pantySize})",
                                     fontSize = 11.sp,
-                                    color = Color.Black
+                                    color = OnSurface
                                 )
                                 Text(
                                     text = String.format(Locale("pt", "BR"), "R$ %,.2f", item.totalValue),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.Black
+                                    color = OnSurface
                                 )
                             }
                             Text(
                                 text = "=> Qtd: ${item.quantity} un x R$ ${item.pantyValue}",
                                 fontSize = 11.sp,
-                                color = Color.DarkGray
+                                color = OnSurfaceVariant
                             )
                         }
                     }
@@ -1414,7 +1421,7 @@ fun OrderInvoiceDialog(
 
                 Text(
                     text = "--------------------------------------------------------",
-                    color = Color.Black,
+                    color = OnSurface,
                     fontSize = 10.sp
                 )
 
@@ -1423,17 +1430,17 @@ fun OrderInvoiceDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("VALOR TOTAL A PAGAR:", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = Color.Black)
+                    Text("VALOR TOTAL A PAGAR:", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = OnSurface)
                     Text(
                         text = String.format(Locale("pt", "BR"), "R$ %,.2f", totalToPay),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.Black
+                        color = Tertiary
                     )
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
-                HorizontalDivider(color = Color.LightGray, modifier = Modifier.padding(top = 10.dp))
+                HorizontalDivider(color = OnSurface.copy(alpha = 0.1f), modifier = Modifier.padding(top = 10.dp))
             }
         },
         confirmButton = {
@@ -1487,7 +1494,9 @@ fun OrderInvoiceDialog(
             TextButton(onClick = onDismiss) {
                 Text("Fechar", color = OnSurfaceVariant)
             }
-        }
+        },
+        containerColor = SurfaceDark,
+        shape = RoundedCornerShape(24.dp)
     )
 }
 
