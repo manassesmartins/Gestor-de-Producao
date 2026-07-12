@@ -1468,7 +1468,7 @@ fun OrderInvoiceDialog(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("PDF", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
-                Button(
+                OutlinedButton(
                     onClick = {
                         com.example.ui.utils.generateInvoiceImageAndShare(
                             context = context,
@@ -1478,11 +1478,12 @@ fun OrderInvoiceDialog(
                         )
                         onDismiss()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = OnPrimary)
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Image,
                         contentDescription = null,
+                        tint = Primary,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
