@@ -590,7 +590,7 @@ fun OrdersScreen(viewModel: TransactionViewModel) {
                             Spacer(modifier = Modifier.height(10.dp))
 
                             // List all sub-items in the group
-                            group.forEach { order ->
+                            group.sortedBy { it.pantyType.lowercase(Locale.getDefault()) }.forEach { order ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
