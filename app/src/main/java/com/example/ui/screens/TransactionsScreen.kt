@@ -382,7 +382,7 @@ fun TransactionsScreen(
         }
     }
 
-    val allWeeks = listOf("5ª Semana", "4ª Semana", "3ª Semana", "2ª Semana", "1ª Semana")
+    val allWeeks = listOf("1ª Semana", "2ª Semana", "3ª Semana", "4ª Semana", "5ª Semana")
 
     var selectedWeekTab by remember {
         mutableStateOf("")
