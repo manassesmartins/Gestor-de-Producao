@@ -767,10 +767,15 @@ fun NewTransactionScreen(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { utcMillis ->
-                        val cal = java.util.Calendar.getInstance()
-                        cal.timeInMillis = utcMillis
-                        cal.set(java.util.Calendar.HOUR_OF_DAY, 12)
-                        selectedDateMillis = cal.timeInMillis
+                        val utcCal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+                        utcCal.timeInMillis = utcMillis
+                        val year = utcCal.get(java.util.Calendar.YEAR)
+                        val month = utcCal.get(java.util.Calendar.MONTH)
+                        val day = utcCal.get(java.util.Calendar.DAY_OF_MONTH)
+                        val localCal = java.util.Calendar.getInstance()
+                        localCal.set(year, month, day, 12, 0, 0)
+                        localCal.set(java.util.Calendar.MILLISECOND, 0)
+                        selectedDateMillis = localCal.timeInMillis
                     }
                     showDatePicker = false
                 }) {
