@@ -896,14 +896,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div class="glass-card p-5 relative overflow-hidden flex flex-col justify-between min-h-[120px]">
                             <div class="flex justify-between items-start">
-                                <span class="text-xs font-bold uppercase text-purple-200/60">Saldo Consolidado</span>
+                                <span class="text-xs font-bold uppercase text-purple-200/60" id="dash-balance-title">Saldo Atual</span>
                                 <div class="p-2 bg-primary/10 rounded-lg text-primary text-sm"><i class="fa-solid fa-wallet"></i></div>
                             </div>
                             <div class="mt-3">
                                 <p class="text-2xl font-mono font-bold text-white tracking-tight" id="dash-balance">R$ 0,00</p>
-                                <span class="text-[10px] text-green-400 mt-1 flex items-center gap-1">
-                                    <i class="fa-solid fa-arrow-up"></i> Balanço saudável do caixa
-                                </span>
+                            </div>
+                            <div class="flex gap-1.5 mt-3" id="balance-mode-toggle">
+                                <button type="button" data-mode="ATUAL" onclick="setBalanceMode('ATUAL')" class="balance-mode-btn flex-1 text-[9px] font-bold py-1.5 rounded-lg border text-center transition-all">Saldo Atual</button>
+                                <button type="button" data-mode="ANTERIOR" onclick="setBalanceMode('ANTERIOR')" class="balance-mode-btn flex-1 text-[9px] font-bold py-1.5 rounded-lg border text-center transition-all">Mês Anterior</button>
+                                <button type="button" data-mode="TOTAL" onclick="setBalanceMode('TOTAL')" class="balance-mode-btn flex-1 text-[9px] font-bold py-1.5 rounded-lg border text-center transition-all">Anterior + Atual</button>
                             </div>
                         </div>
 
@@ -1666,11 +1668,58 @@ document.addEventListener('DOMContentLoaded', () => {
         let selectedDashMonth = '';
         let selectedTxMonth = '';
         let selectedOrderMonth = '';
+        let selectedBalanceMode = 'ATUAL'; // "ATUAL", "ANTERIOR", "TOTAL"
 
         function getMonthYear(ts) {
             if (!ts) return '';
             const d = new Date(ts);
             return (d.getMonth() + 1).toString().padStart(2, '0') + '/' + d.getFullYear();
+        }
+        function getPrevMonthYear(monthYear) {
+            if (!monthYear) return '';
+            const [m, y] = monthYear.split('/').map(Number);
+            let pm = m - 1;
+            let py = y;
+            if (pm < 1) { pm = 12; py--; }
+            return pm.toString().padStart(2, '0') + '/' + py;
+        }
+        function setBalanceMode(mode) {
+            selectedBalanceMode = mode;
+            localStorage.setItem('ms_balance_mode', mode);
+            renderDashboard();
+        }
+        function updateBalanceModeToggle() {
+            document.querySelectorAll('.balance-mode-btn').forEach(btn => {
+                const active = btn.getAttribute('data-mode') === selectedBalanceMode;
+                if (active) {
+                    btn.className = "balance-mode-btn flex-1 text-[9px] font-bold py-1.5 rounded-lg border text-center transition-all bg-primary/20 border-primary/50 text-white";
+                } else {
+                    btn.className = "balance-mode-btn flex-1 text-[9px] font-bold py-1.5 rounded-lg border text-center transition-all bg-white/5 border-white/10 text-purple-200/70 hover:bg-white/10 hover:text-white";
+                }
+            });
+        }
+        // Cores gradiente: custos branco -> amarelo -> vermelho; lucros branco -> azul -> verde
+        function lerpColor(c1, c2, t) {
+            const a = [parseInt(c1.slice(1,3),16), parseInt(c1.slice(3,5),16), parseInt(c1.slice(5,7),16)];
+            const b = [parseInt(c2.slice(1,3),16), parseInt(c2.slice(3,5),16), parseInt(c2.slice(5,7),16)];
+            const r = Math.round(a[0] + (b[0]-a[0])*t);
+            const g = Math.round(a[1] + (b[1]-a[1])*t);
+            const bl = Math.round(a[2] + (b[2]-a[2])*t);
+            return `rgb(${r}, ${g}, ${bl})`;
+        }
+        function categoryCostColor(ratio) {
+            const low = '#FFFFFF';
+            const mid = '#FFEB3B';
+            const high = '#EF4444';
+            const r = Math.max(0, Math.min(1, ratio));
+            return r <= 0.5 ? lerpColor(low, mid, r/0.5) : lerpColor(mid, high, (r-0.5)/0.5);
+        }
+        function profitColor(ratio) {
+            const low = '#FFFFFF';
+            const mid = '#2196F3';
+            const high = '#10B981';
+            const r = Math.max(0, Math.min(1, ratio));
+            return r <= 0.5 ? lerpColor(low, mid, r/0.5) : lerpColor(mid, high, (r-0.5)/0.5);
         }
         function getCurrentMonthYear() {
             const d = new Date();
@@ -1711,11 +1760,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedDashMonth = localStorage.getItem('ms_selected_dash_month') || getActiveOpenMonth();
                 selectedTxMonth = localStorage.getItem('ms_selected_tx_month') || getActiveOpenMonth();
                 selectedOrderMonth = localStorage.getItem('ms_selected_order_month') || getActiveOpenMonth();
+                selectedBalanceMode = localStorage.getItem('ms_balance_mode') || 'ATUAL';
             } catch(e) {
                 closedMonths = new Set();
                 selectedDashMonth = getActiveOpenMonth();
                 selectedTxMonth = getActiveOpenMonth();
                 selectedOrderMonth = getActiveOpenMonth();
+                selectedBalanceMode = 'ATUAL';
             }
         }
         function saveMonthState() {
@@ -3005,10 +3056,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const balance = inflowTotal - outflowTotal;
 
+            // Saldo do mês anterior
+            const prevMonth = getPrevMonthYear(month);
+            const prevFilteredOrders = prevMonth ? filterByMonth(orders, prevMonth) : [];
+            const prevFilteredTransactions = prevMonth ? filterByMonth(transactions, prevMonth) : [];
+            let prevInflowTotal = 0;
+            let prevOutflowTotal = 0;
+            prevFilteredOrders.forEach(o => { prevInflowTotal += parseFloat(o.totalValue) || 0; });
+            prevFilteredTransactions.forEach(t => {
+                if (t.type === 'OUTFLOW') prevOutflowTotal += parseFloat(t.amount) || 0;
+            });
+            const prevBalance = prevInflowTotal - prevOutflowTotal;
+
+            const displayedBalance = selectedBalanceMode === 'ANTERIOR' ? prevBalance
+                : selectedBalanceMode === 'TOTAL' ? (prevBalance + balance)
+                : balance;
+
             // Update UI elements
-            document.getElementById('dash-balance').innerText = formatCurrency(balance);
+            document.getElementById('dash-balance').innerText = formatCurrency(displayedBalance);
             document.getElementById('dash-inflow').innerText = formatCurrency(inflowTotal);
             document.getElementById('dash-outflow').innerText = formatCurrency(outflowTotal);
+
+            const balanceTitle = document.getElementById('dash-balance-title');
+            if (balanceTitle) {
+                balanceTitle.innerText = selectedBalanceMode === 'ANTERIOR' ? 'Saldo Mês Anterior'
+                    : selectedBalanceMode === 'TOTAL' ? 'Saldo Total (Anterior + Atual)'
+                    : 'Saldo Atual';
+            }
+            updateBalanceModeToggle();
 
             // Compute and update advanced metrics
             const marginPctVal = inflowTotal > 0 ? ((balance / inflowTotal) * 100) : 0;
@@ -3053,8 +3128,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const catListContainer = document.getElementById('pie-categories-list');
             catListContainer.innerHTML = '';
 
-            const colors = ['#F472B6', '#FBCFE8', '#FDA4AF', '#E2B7CE', '#F43F5E', '#361525'];
-            let colorIdx = 0;
+            const maxCategoryExpense = Object.keys(categoriesCostMap).length > 0 ? Math.max(...Object.values(categoriesCostMap), 1) : 1;
 
             const categoryBreakdowns = Object.keys(categoriesCostMap).map(k => {
                 return { name: k, total: categoriesCostMap[k] };
@@ -3064,12 +3138,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 catListContainer.innerHTML = `<p class="text-purple-200/40 text-center py-2">Sem despesas registradas</p>`;
                 document.getElementById('svg-pie-1').style.strokeDashoffset = '314';
                 document.getElementById('svg-pie-2').style.strokeDashoffset = '314';
+                document.getElementById('svg-pie-1').style.stroke = 'var(--primary)';
+                document.getElementById('svg-pie-2').style.stroke = 'var(--secondary)';
                 document.getElementById('dash-cost-percentage').innerText = "0%";
             } else {
                 categoryBreakdowns.forEach(item => {
                     const pct = totalCosts > 0 ? ((item.total / totalCosts) * 100).toFixed(0) : 0;
-                    const c = colors[colorIdx % colors.length];
-                    colorIdx++;
+                    const c = categoryCostColor(item.total / maxCategoryExpense);
 
                     const row = document.createElement('div');
                     row.className = "flex items-center justify-between text-purple-200/70";
@@ -3078,19 +3153,23 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span class="h-2 w-2 rounded-full" style="background-color: ${c}"></span>
                             ${item.name}
                         </span>
-                        <span class="font-mono font-semibold text-white">${pct}% (${formatCurrency(item.total)})</span>
+                        <span class="font-mono font-semibold text-white" style="color: ${c}">${pct}% (${formatCurrency(item.total)})</span>
                     `;
                     catListContainer.appendChild(row);
                 });
 
-                // Set SVG pie offsets based on top categories
+                // Set SVG pie offsets and colors based on top categories
                 const pct1 = totalCosts > 0 ? (categoryBreakdowns[0].total / totalCosts) : 0;
                 const offset1 = 314 - (314 * pct1);
                 document.getElementById('svg-pie-1').style.strokeDashoffset = offset1.toString();
+                document.getElementById('svg-pie-1').style.stroke = categoryCostColor(categoryBreakdowns[0].total / maxCategoryExpense);
 
                 const pct2 = categoryBreakdowns.length > 1 ? (categoryBreakdowns[1].total / totalCosts) : 0;
                 const offset2 = 314 - (314 * pct2);
                 document.getElementById('svg-pie-2').style.strokeDashoffset = offset2.toString();
+                if (categoryBreakdowns.length > 1) {
+                    document.getElementById('svg-pie-2').style.stroke = categoryCostColor(categoryBreakdowns[1].total / maxCategoryExpense);
+                }
 
                 document.getElementById('dash-cost-percentage').innerText = "100%";
             }
@@ -3199,11 +3278,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const profitEl = document.getElementById('weekly-profit');
             if (profitEl) {
                 profitEl.innerText = formatCurrency(profit);
-                if (profit >= 0) {
-                    profitEl.className = "font-mono font-bold text-emerald-400 text-base";
-                } else {
-                    profitEl.className = "font-mono font-bold text-red-500 text-base";
-                }
+                const profitRatio = totalOrdersValue > 0 ? (profit / totalOrdersValue) : 0;
+                profitEl.style.color = profit >= 0 ? profitColor(profitRatio) : '#F43F5E';
+                profitEl.className = "font-mono font-bold text-base";
             }
 
             const tithingEl = document.getElementById('weekly-tithing');
@@ -3218,11 +3295,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const pctEl = document.getElementById('weekly-profit-pct');
             if (pctEl) {
                 pctEl.innerText = `${profitPercentage.toFixed(2)} %`;
-                if (profitPercentage >= 35.0) {
-                    pctEl.className = "font-mono font-bold text-emerald-400 text-base";
-                } else {
-                    pctEl.className = "font-mono font-bold text-red-500 text-base";
-                }
+                pctEl.style.color = profit >= 0 ? profitColor(Math.max(0, Math.min(1, profitPercentage / 100))) : '#F43F5E';
+                pctEl.className = "font-mono font-bold text-base";
             }
 
             const banner = document.getElementById('weekly-status-banner');
@@ -3258,17 +3332,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 standardCategories.forEach(cat => {
                     const amt = expensesMap[cat];
                     const pct = maxExpense > 0 ? ((amt / maxExpense) * 100) : 0;
-                    const barColorClass = (cat === "Funcionários") ? "bg-red-500" : "bg-primary";
-                    
+                    const barColor = categoryCostColor(amt / maxExpense);
+
                     const col = document.createElement('div');
                     col.className = "space-y-1.5";
                     col.innerHTML = `
                         <div class="flex justify-between text-xs font-semibold">
                             <span class="text-white">${cat}</span>
-                            <span class="text-purple-200/60 font-mono">${formatCurrency(amt)}</span>
+                            <span class="font-mono" style="color: ${barColor}">${formatCurrency(amt)}</span>
                         </div>
                         <div class="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                            <div class="h-full ${barColorClass} rounded-full" style="width: ${pct}%"></div>
+                            <div class="h-full rounded-full" style="width: ${pct}%; background-color: ${barColor};"></div>
                         </div>
                     `;
                     breakdownContainer.appendChild(col);

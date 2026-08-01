@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -173,6 +174,22 @@ fun DashboardScreen(
         }
     }
 
+    // Saldo do mês anterior (entradas de pedidos - saídas) para contextualizar o caixa
+    val prevMonthBalance = remember(orders, transactions, prevMonthTab) {
+        if (prevMonthTab.isEmpty()) 0.0 else {
+            val prevOrders = orders.filter {
+                SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == prevMonthTab
+            }
+            val prevOutflow = transactions.filter {
+                it.type == "OUTFLOW" && SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(it.timestamp)) == prevMonthTab
+            }.sumOf { it.amount }
+            prevOrders.sumOf { it.totalValue } - prevOutflow
+        }
+    }
+
+    // Modo de exibição do saldo: "ATUAL", "ANTERIOR" ou "TOTAL" (anterior + atual)
+    var balanceViewMode by remember { mutableStateOf("ATUAL") }
+
     val activeSummary = remember(filteredTransactions, filteredOrders, orders, transactions, prevMonthTab) {
         val totalIn = filteredOrders.sumOf { it.totalValue }
         val totalOut = filteredTransactions.filter { it.type == "OUTFLOW" }.sumOf { it.amount }
@@ -238,7 +255,7 @@ fun DashboardScreen(
 
     // Outer-level remembered computations to prevent heavy re-evaluation on scroll and during animations
     val weeklyProfitData = remember(filteredTransactions, filteredOrders) {
-        val weeksToCount = listOf("1ª Semana", "2ª Semana", "3ª Semana", "4ª Semana")
+        val weeksToCount = listOf("1ª Semana", "2ª Semana", "3ª Semana", "4ª Semana", "5ª Semana")
         WeeklyProfitList(weeksToCount.map { w ->
             val weekOrders = filteredOrders.filter { it.week == w }
             val weekInflowOrders = weekOrders.sumOf { it.totalValue }
@@ -544,7 +561,11 @@ fun DashboardScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Saldo Atual",
+                                    text = when (balanceViewMode) {
+                                        "ANTERIOR" -> "Saldo Mês Anterior"
+                                        "TOTAL" -> "Saldo Total (Anterior + Atual)"
+                                        else -> "Saldo Atual"
+                                    },
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = OnSurfaceVariant,
@@ -558,14 +579,60 @@ fun DashboardScreen(
                                 )
                             }
                             Spacer(modifier = Modifier.height(6.dp))
+                            val displayedBalance = when (balanceViewMode) {
+                                "ANTERIOR" -> prevMonthBalance
+                                "TOTAL" -> prevMonthBalance + summary.currentBalance
+                                else -> summary.currentBalance
+                            }
                             Text(
-                                text = String.format(Locale("pt", "BR"), "R$ %,.2f", summary.currentBalance),
+                                text = String.format(Locale("pt", "BR"), "R$ %,.2f", displayedBalance),
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = OnSurface,
                                 fontFamily = FontFamily.SansSerif,
                                 modifier = Modifier.testTag("dashboard_balance")
                             )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                listOf(
+                                    "ATUAL" to "Saldo Atual",
+                                    "ANTERIOR" to "Mês Anterior",
+                                    "TOTAL" to "Anterior + Atual"
+                                ).forEach { (mode, label) ->
+                                    val isSelected = balanceViewMode == mode
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(
+                                                if (isSelected) Primary.copy(alpha = 0.2f)
+                                                else Color.White.copy(alpha = 0.05f)
+                                            )
+                                            .border(
+                                                1.dp,
+                                                if (isSelected) Primary.copy(alpha = 0.6f)
+                                                else Color.White.copy(alpha = 0.1f),
+                                                RoundedCornerShape(12.dp)
+                                            )
+                                            .clickable { balanceViewMode = mode }
+                                            .padding(vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            fontSize = 10.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) Primary else OnSurfaceVariant,
+                                            textAlign = TextAlign.Center,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                            }
                             Spacer(modifier = Modifier.height(12.dp))
                             HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
                             Spacer(modifier = Modifier.height(10.dp))
@@ -1101,6 +1168,32 @@ fun ArchivedHistoryView(
     }
 }
 
+// Cor gradiente para custos: branco (valor baixo) -> amarelo (médio) -> vermelho (valor alto)
+private fun categoryCostColor(ratio: Float): Color {
+    val low = Color.White
+    val mid = Color(0xFFFFEB3B)
+    val high = Color(0xFFEF4444)
+    val r = ratio.coerceIn(0f, 1f)
+    return if (r <= 0.5f) {
+        lerp(low, mid, r / 0.5f)
+    } else {
+        lerp(mid, high, (r - 0.5f) / 0.5f)
+    }
+}
+
+// Cor gradiente para lucros: branco (valor baixo) -> azul (médio) -> verde (valor alto)
+private fun profitColor(ratio: Float): Color {
+    val low = Color.White
+    val mid = Color(0xFF2196F3)
+    val high = Color(0xFF10B981)
+    val r = ratio.coerceIn(0f, 1f)
+    return if (r <= 0.5f) {
+        lerp(low, mid, r / 0.5f)
+    } else {
+        lerp(mid, high, (r - 0.5f) / 0.5f)
+    }
+}
+
 @Composable
 fun WeeklyReportsSection(
     transactions: List<TransactionEntity>,
@@ -1383,6 +1476,7 @@ fun WeeklyReportsSection(
                         val maxExpense = expensesByCategory.values.maxOrNull() ?: 1.0
                         expensesByCategory.forEach { (cat, amt) ->
                             val pct = if (maxExpense > 0) (amt / maxExpense).toFloat() else 0f
+                            val barColor = categoryCostColor(pct)
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -1392,7 +1486,8 @@ fun WeeklyReportsSection(
                                     Text(
                                         text = String.format(Locale("pt", "BR"), "R$ %,.2f", amt),
                                         fontSize = 13.sp,
-                                        color = OnSurfaceVariant
+                                        color = barColor,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                                 LinearProgressIndicator(
@@ -1401,7 +1496,7 @@ fun WeeklyReportsSection(
                                         .fillMaxWidth()
                                         .height(6.dp)
                                         .clip(RoundedCornerShape(3.dp)),
-                                    color = if (cat == "Funcionários" || cat == "Mão de Obra") ErrorColor else Primary,
+                                    color = barColor,
                                     trackColor = Color.White.copy(alpha = 0.1f)
                                 )
                             }
@@ -1871,7 +1966,6 @@ fun WeeklyProfitChart(weeklyData: WeeklyProfitList, modifier: Modifier = Modifie
     val maxProfit = remember(items) { items.maxOfOrNull { it.second }?.takeIf { it > 0 } ?: 1.0 }
     val minProfit = remember(items) { items.minOfOrNull { it.second }?.takeIf { it < 0 } ?: 0.0 }
 
-    val primary = MaterialTheme.colorScheme.primary
     val errorColor = MaterialTheme.colorScheme.error
     val onSurface = MaterialTheme.colorScheme.onSurface 
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1891,7 +1985,7 @@ fun WeeklyProfitChart(weeklyData: WeeklyProfitList, modifier: Modifier = Modifie
             color = onSurface
         )
         Text(
-            "Últimos 4 períodos",
+            "Últimos ${items.size} períodos",
             fontSize = 11.sp,
             color = onSurfaceVariant
         )
@@ -1908,7 +2002,8 @@ fun WeeklyProfitChart(weeklyData: WeeklyProfitList, modifier: Modifier = Modifie
             
             items.forEach { (weekStr, profit) ->
                 val ratio = remember(profit, amplitude) { (Math.abs(profit) / amplitude).toFloat().coerceIn(0f, 1f) }
-                val barColor = if (profit >= 0.0) primary else errorColor
+                val profitRatio = remember(profit, maxProfit) { if (profit > 0.0 && maxProfit > 0.0) (profit / maxProfit).toFloat().coerceIn(0f, 1f) else 0f }
+                val barColor = if (profit >= 0.0) profitColor(profitRatio) else errorColor
 
                 Column(
                     modifier = Modifier
@@ -1992,7 +2087,8 @@ fun WeeklySectionChart(
                     }
                 }
                 
-                val maxProfit = remember(weeklyProfits) { weeklyProfits.maxOf { Math.abs(it.second) }.coerceAtLeast(100.0) }
+                val maxAbsProfit = remember(weeklyProfits) { weeklyProfits.maxOf { Math.abs(it.second) }.coerceAtLeast(100.0) }
+                val maxPosProfit = remember(weeklyProfits) { weeklyProfits.maxOfOrNull { it.second }?.takeIf { it > 0.0 } ?: 100.0 }
                 
                 Row(
                     modifier = Modifier
@@ -2003,8 +2099,9 @@ fun WeeklySectionChart(
                     verticalAlignment = Alignment.Bottom
                 ) {
                     weeklyProfits.forEach { (weekStr, profit) ->
-                        val ratio = (Math.abs(profit) / maxProfit).toFloat().coerceIn(0.01f, 1f)
-                        val barColor = if (profit >= 0.0) tertiary else errorColor
+                        val ratio = (Math.abs(profit) / maxAbsProfit).toFloat().coerceIn(0.01f, 1f)
+                        val profitRatio = if (profit > 0.0) (profit / maxPosProfit).toFloat().coerceIn(0f, 1f) else 0f
+                        val barColor = if (profit >= 0.0) profitColor(profitRatio) else errorColor
                         
                         Column(
                             modifier = Modifier
@@ -2108,6 +2205,7 @@ fun WeeklySectionChart(
 
                     // Bar 2: Saídas
                     val outflowRatio = (outflow / maxVal).toFloat().coerceIn(0.01f, 1f)
+                    val outflowColor = categoryCostColor(outflowRatio)
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -2119,7 +2217,7 @@ fun WeeklySectionChart(
                             text = String.format(Locale("pt", "BR"), "R$ %,.2f", outflow),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
-                            color = errorColor
+                            color = outflowColor
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Box(
@@ -2127,7 +2225,7 @@ fun WeeklySectionChart(
                                 .fillMaxWidth(0.5f)
                                 .weight(outflowRatio)
                                 .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                .background(errorColor.copy(alpha = 0.85f))
+                                .background(outflowColor.copy(alpha = 0.85f))
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
@@ -2140,7 +2238,7 @@ fun WeeklySectionChart(
 
                     // Bar 3: Resultado/Lucro
                     val profitRatio = (Math.abs(profit) / maxVal).toFloat().coerceIn(0.01f, 1f)
-                    val profitColor = if (profit >= 0.0) tertiary else errorColor
+                    val profitBarColor = if (profit >= 0.0) profitColor((profit / maxVal).toFloat().coerceIn(0f, 1f)) else errorColor
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -2152,7 +2250,7 @@ fun WeeklySectionChart(
                             text = String.format(Locale("pt", "BR"), "R$ %,.2f", profit),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
-                            color = profitColor
+                            color = profitBarColor
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Box(
@@ -2160,7 +2258,7 @@ fun WeeklySectionChart(
                                 .fillMaxWidth(0.5f)
                                 .weight(profitRatio)
                                 .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                .background(profitColor.copy(alpha = 0.85f))
+                                .background(profitBarColor.copy(alpha = 0.85f))
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
