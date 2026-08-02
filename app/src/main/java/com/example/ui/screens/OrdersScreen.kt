@@ -860,12 +860,15 @@ fun OrderAddEditDialog(
     }
     var showDatePicker by remember { mutableStateOf(false) }
     
-    // Automatically calculate week string based on time
+    // Automatically calculate week string based on time.
+    // Weeks are fixed 7-day blocks from the 1st of the month, so the first
+    // 7 days are always "1ª Semana" regardless of which weekday the month starts on.
     val selectedWeek = remember(selectedTimeMillis) {
         val cal = java.util.Calendar.getInstance(Locale("pt", "BR"))
         cal.timeInMillis = selectedTimeMillis
-        val weekOfMonth = cal.get(java.util.Calendar.WEEK_OF_MONTH)
-        "${weekOfMonth}ª Semana"
+        val dayOfMonth = cal.get(java.util.Calendar.DAY_OF_MONTH)
+        val weekNum = ((dayOfMonth - 1) / 7) + 1
+        "${weekNum}ª Semana"
     }
 
     var area by remember { mutableStateOf(order?.businessArea ?: "Geral") }
