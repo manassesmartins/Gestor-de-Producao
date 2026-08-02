@@ -896,16 +896,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div class="glass-card p-5 relative overflow-hidden flex flex-col justify-between min-h-[120px]">
                             <div class="flex justify-between items-start">
-                                <span class="text-xs font-bold uppercase text-purple-200/60" id="dash-balance-title">Saldo Atual</span>
+                                <span class="text-xs font-bold uppercase text-purple-200/60" id="dash-balance-title">Saldo Total (Anterior + Atual)</span>
                                 <div class="p-2 bg-primary/10 rounded-lg text-primary text-sm"><i class="fa-solid fa-wallet"></i></div>
                             </div>
                             <div class="mt-3">
                                 <p class="text-2xl font-mono font-bold text-white tracking-tight" id="dash-balance">R$ 0,00</p>
                             </div>
                             <div class="flex gap-1.5 mt-3" id="balance-mode-toggle">
-                                <button type="button" data-mode="ATUAL" onclick="setBalanceMode('ATUAL')" class="balance-mode-btn flex-1 text-[9px] font-bold py-1.5 rounded-lg border text-center transition-all">Saldo Atual</button>
-                                <button type="button" data-mode="ANTERIOR" onclick="setBalanceMode('ANTERIOR')" class="balance-mode-btn flex-1 text-[9px] font-bold py-1.5 rounded-lg border text-center transition-all">Mês Anterior</button>
                                 <button type="button" data-mode="TOTAL" onclick="setBalanceMode('TOTAL')" class="balance-mode-btn flex-1 text-[9px] font-bold py-1.5 rounded-lg border text-center transition-all">Anterior + Atual</button>
+                                <button type="button" data-mode="ATUAL" onclick="setBalanceMode('ATUAL')" class="balance-mode-btn flex-1 text-[9px] font-bold py-1.5 rounded-lg border text-center transition-all">Saldo do Mês</button>
+                                <button type="button" data-mode="ANTERIOR" onclick="setBalanceMode('ANTERIOR')" class="balance-mode-btn flex-1 text-[9px] font-bold py-1.5 rounded-lg border text-center transition-all">Mês Anterior</button>
                             </div>
                         </div>
 
@@ -1135,6 +1135,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="flex justify-between items-center text-sm font-bold">
                                 <span class="text-white font-sans">Resultado Líquido</span>
                                 <span class="font-mono font-extrabold text-white text-base" id="monthly-net-balance">R$ 0,00</span>
+                            </div>
+                            <hr class="border-white/5">
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-purple-200/60">Saldo do Mês Anterior</span>
+                                <span class="font-mono font-bold text-purple-200/90" id="monthly-prev-balance">R$ 0,00</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm font-bold">
+                                <span class="text-white font-sans">Saldo Total (Anterior + Atual)</span>
+                                <span class="font-mono font-extrabold text-primary text-base" id="monthly-total-balance">R$ 0,00</span>
                             </div>
                         </div>
                     </div>
@@ -1668,7 +1677,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let selectedDashMonth = '';
         let selectedTxMonth = '';
         let selectedOrderMonth = '';
-        let selectedBalanceMode = 'ATUAL'; // "ATUAL", "ANTERIOR", "TOTAL"
+        let selectedBalanceMode = 'TOTAL'; // "TOTAL", "ATUAL", "ANTERIOR"
 
         function getMonthYear(ts) {
             if (!ts) return '';
@@ -1760,13 +1769,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedDashMonth = localStorage.getItem('ms_selected_dash_month') || getActiveOpenMonth();
                 selectedTxMonth = localStorage.getItem('ms_selected_tx_month') || getActiveOpenMonth();
                 selectedOrderMonth = localStorage.getItem('ms_selected_order_month') || getActiveOpenMonth();
-                selectedBalanceMode = localStorage.getItem('ms_balance_mode') || 'ATUAL';
+                selectedBalanceMode = localStorage.getItem('ms_balance_mode') || 'TOTAL';
             } catch(e) {
                 closedMonths = new Set();
                 selectedDashMonth = getActiveOpenMonth();
                 selectedTxMonth = getActiveOpenMonth();
                 selectedOrderMonth = getActiveOpenMonth();
-                selectedBalanceMode = 'ATUAL';
+                selectedBalanceMode = 'TOTAL';
             }
         }
         function saveMonthState() {
@@ -3080,8 +3089,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const balanceTitle = document.getElementById('dash-balance-title');
             if (balanceTitle) {
                 balanceTitle.innerText = selectedBalanceMode === 'ANTERIOR' ? 'Saldo Mês Anterior'
-                    : selectedBalanceMode === 'TOTAL' ? 'Saldo Total (Anterior + Atual)'
-                    : 'Saldo Atual';
+                    : selectedBalanceMode === 'ATUAL' ? 'Saldo do Mês'
+                    : 'Saldo Total (Anterior + Atual)';
             }
             updateBalanceModeToggle();
 
@@ -3404,9 +3413,38 @@ document.addEventListener('DOMContentLoaded', () => {
             const totalOutflow = monthlyOutflows.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
             const balance = totalInflow - totalOutflow;
 
+            // Saldo do mês anterior (referência do relatório mensal)
+            const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
+            const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1;
+
+            const prevOrders = orders.filter(o => {
+                const ts = o.timestamp || o.id;
+                const { month, year } = getMonthAndYear(ts);
+                return month === prevMonth && year === prevYear;
+            });
+            const prevInflowTxs = transactions.filter(t => {
+                if (t.type !== 'INFLOW') return false;
+                const { month, year } = getMonthAndYear(t.timestamp);
+                return month === prevMonth && year === prevYear;
+            });
+            const prevOutflowTxs = transactions.filter(t => {
+                if (t.type !== 'OUTFLOW') return false;
+                const { month, year } = getMonthAndYear(t.timestamp);
+                return month === prevMonth && year === prevYear;
+            });
+            const prevInflow = prevOrders.reduce((sum, o) => sum + (parseFloat(o.totalValue) || 0), 0) +
+                                prevInflowTxs.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+            const prevOutflow = prevOutflowTxs.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+            const prevBalance = prevInflow - prevOutflow;
+
             // DOM output
             document.getElementById('monthly-total-inflow').innerText = formatCurrency(totalInflow);
             document.getElementById('monthly-total-outflow').innerText = formatCurrency(totalOutflow);
+            
+            const prevBalanceEl = document.getElementById('monthly-prev-balance');
+            if (prevBalanceEl) prevBalanceEl.innerText = formatCurrency(prevBalance);
+            const totalBalanceEl = document.getElementById('monthly-total-balance');
+            if (totalBalanceEl) totalBalanceEl.innerText = formatCurrency(prevBalance + balance);
             
             const netBalanceEl = document.getElementById('monthly-net-balance');
             if (netBalanceEl) {
@@ -3907,6 +3945,22 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('tx-modal').classList.add('hidden');
         }
 
+        // Gasto lançado com data na última semana do mês (ex.: dia 29, compra para o mês seguinte)
+        // passa a contar na 1ª semana do mês seguinte. A data de compra continua exibida no registro.
+        function shiftLastWeekExpenseToNextMonth(type, week, ts) {
+            if (type !== 'OUTFLOW') return { timestamp: ts, week: week };
+            const d = new Date(ts);
+            const year = d.getFullYear();
+            const month = d.getMonth();
+            const day = d.getDate();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            if (day <= daysInMonth - 7) return { timestamp: ts, week: week };
+            const nextMonthFirst = new Date(year, month + 1, 1, 12, 0, 0, 0);
+            const nextMonthYear = (nextMonthFirst.getMonth() + 1).toString().padStart(2, '0') + '/' + nextMonthFirst.getFullYear();
+            if (closedMonths.has(nextMonthYear)) return { timestamp: ts, week: week };
+            return { timestamp: nextMonthFirst.getTime(), week: '1ª Semana' };
+        }
+
         async function handleTransactionSubmit(event) {
             event.preventDefault();
             const editId = document.getElementById('tx-edit-id').value;
@@ -3920,16 +3974,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const now = new Date();
             const formattedDate = `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()}`;
 
+            const shifted = shiftLastWeekExpenseToNextMonth(type, week, Date.now());
+
             const transactionObj = {
                 id: editId ? parseInt(editId) : Date.now(),
                 type,
                 category,
                 description,
                 amount,
-                week,
+                week: shifted.week,
                 extraText: extra,
                 dateString: formattedDate,
-                timestamp: Date.now()
+                timestamp: shifted.timestamp
             };
 
             if (editId) {
@@ -3939,7 +3995,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const cleanObj = { ...transactionObj };
                     delete cleanObj.id;
                     await supabaseClient.from('transactions').update({
-                        type, category, description, amount, week, extraText: extra, dateString: formattedDate, timestamp: Date.now()
+                        type, category, description, amount, week: shifted.week, extraText: extra, dateString: formattedDate, timestamp: shifted.timestamp
                     }).eq('id', editId);
                 }
             } else {
@@ -3947,7 +4003,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 transactions.unshift(transactionObj);
                 if (supabaseClient && user) {
                     await supabaseClient.from('transactions').insert({
-                        type, category, description, amount, week, extraText: extra, dateString: formattedDate, timestamp: Date.now(), user_id: user.id
+                        type, category, description, amount, week: shifted.week, extraText: extra, dateString: formattedDate, timestamp: shifted.timestamp, user_id: user.id
                     });
                 }
             }

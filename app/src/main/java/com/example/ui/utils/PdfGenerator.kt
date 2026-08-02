@@ -18,6 +18,7 @@ import java.util.*
 fun generatePdfAndShare(
     context: Context,
     balance: Double,
+    prevMonthBalance: Double = 0.0,
     inflow: Double,
     outflow: Double,
     transactions: List<TransactionEntity>,
@@ -63,22 +64,24 @@ fun generatePdfAndShare(
         paint.isFakeBoldText = false
         canvas.drawText(String.format("Faturamento Bruto (Receitas): R$ %,.2f", inflow), 50f, 160f, paint)
         canvas.drawText(String.format("Despesas Operacionais (Saídas): R$ %,.2f", outflow), 50f, 180f, paint)
-        
+
         paint.color = primaryColor
         paint.isFakeBoldText = true
         paint.textSize = 11f
-        canvas.drawText(String.format("Saldo em Caixa (Lucro Líquido): R$ %,.2f", balance), 50f, 210f, paint)
+        canvas.drawText(String.format("Saldo do Mês Anterior: R$ %,.2f", prevMonthBalance), 50f, 210f, paint)
+        canvas.drawText(String.format("Saldo do Mês Atual: R$ %,.2f", balance), 50f, 230f, paint)
+        canvas.drawText(String.format("Saldo Total (Anterior + Atual): R$ %,.2f", prevMonthBalance + balance), 50f, 250f, paint)
 
         paint.color = Color.DKGRAY
         paint.isFakeBoldText = false
         val totalPieces = orders.sumOf { it.quantity }
         val costPiece = if (totalPieces > 0) outflow / totalPieces else 0.0
         val margin = if (inflow > 0.0) (balance / inflow) * 100.0 else 0.0
-        canvas.drawText(String.format("Margem Estimada de Rendimento: %,.1f%%", margin), 50f, 230f, paint)
-        canvas.drawText(String.format("Volume Total Fabricado: %d peças", totalPieces), 50f, 250f, paint)
-        canvas.drawText(String.format("Custo de Insumo Unitário Médio: R$ %,.2f", costPiece), 50f, 270f, paint)
+        canvas.drawText(String.format("Margem Estimada de Rendimento: %,.1f%%", margin), 50f, 270f, paint)
+        canvas.drawText(String.format("Volume Total Fabricado: %d peças", totalPieces), 50f, 290f, paint)
+        canvas.drawText(String.format("Custo de Insumo Unitário Médio: R$ %,.2f", costPiece), 50f, 310f, paint)
 
-        var currentY = 310f
+        var currentY = 350f
 
         val ordersByWeek = orders.groupBy { it.week }
         val outflowsByWeek = transactions.filter { it.type == "OUTFLOW" }.groupBy { it.week }
@@ -420,7 +423,7 @@ fun generateInvoicePdfAndShare(
             type = "application/pdf"
             putExtra(Intent.EXTRA_TITLE, "Compartilhar Comanda de Entrega")
             putExtra(Intent.EXTRA_SUBJECT, "Comanda Semanal - $brandName")
-            putExtra(Intent.EXTRA_TEXT, "Aqui a comanda do seu pedido")
+            putExtra(Intent.EXTRA_TEXT, "Aqui está a comanda do seu pedido")
             putExtra(Intent.EXTRA_STREAM, comandaUri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
@@ -465,7 +468,7 @@ fun generateInvoiceImageAndShare(
             type = "image/jpeg"
             putExtra(Intent.EXTRA_TITLE, "Compartilhar Comanda de Entrega")
             putExtra(Intent.EXTRA_SUBJECT, "Comanda Semanal - $brandName")
-            putExtra(Intent.EXTRA_TEXT, "Aqui a comanda do seu pedido")
+            putExtra(Intent.EXTRA_TEXT, "Aqui está a comanda do seu pedido")
             putExtra(Intent.EXTRA_STREAM, imageUri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }

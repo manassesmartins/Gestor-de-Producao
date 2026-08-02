@@ -946,6 +946,43 @@ class TransactionViewModel(
         return activeMonth
     }
 
+    // Gasto lançado com data na última semana do mês (ex.: dia 29, compra para o mês seguinte)
+    // passa a contar na 1ª semana do mês seguinte. A data de compra continua exibida no registro.
+    private fun shiftLastWeekExpenseToNextMonth(
+        timestamp: Long,
+        type: String,
+        week: String,
+        closedMonthsSet: Set<String>
+    ): Pair<Long, String> {
+        if (type != "OUTFLOW") return timestamp to week
+        return try {
+            val cal = java.util.Calendar.getInstance(Locale("pt", "BR"))
+            cal.timeInMillis = timestamp
+            val dayOfMonth = cal.get(java.util.Calendar.DAY_OF_MONTH)
+            val lastDay = cal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+            if (dayOfMonth <= lastDay - 7) {
+                timestamp to week
+            } else {
+                val shifted = java.util.Calendar.getInstance(Locale("pt", "BR"))
+                shifted.timeInMillis = timestamp
+                shifted.set(java.util.Calendar.DAY_OF_MONTH, 1)
+                shifted.add(java.util.Calendar.MONTH, 1)
+                shifted.set(java.util.Calendar.HOUR_OF_DAY, 12)
+                shifted.set(java.util.Calendar.MINUTE, 0)
+                shifted.set(java.util.Calendar.SECOND, 0)
+                shifted.set(java.util.Calendar.MILLISECOND, 0)
+                val nextMonthYear = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date(shifted.timeInMillis))
+                if (closedMonthsSet.contains(nextMonthYear)) {
+                    timestamp to week
+                } else {
+                    shifted.timeInMillis to "1ª Semana"
+                }
+            }
+        } catch (e: Exception) {
+            timestamp to week
+        }
+    }
+
     fun addTransaction(
         description: String,
         amount: Double,
@@ -958,7 +995,7 @@ class TransactionViewModel(
         viewModelScope.launch {
             val closedMonthsSet = repository.allClosedMonths.first().map { it.monthYear }.toSet()
             val currentMonthYear = SimpleDateFormat("MM/yyyy", Locale("pt", "BR")).format(Date())
-            val finalTstamp = if (timestamp != null) {
+            val purchaseTstamp = if (timestamp != null) {
                 timestamp
             } else if (closedMonthsSet.contains(currentMonthYear)) {
                 val activeMonth = getActiveOpenMonth(closedMonthsSet)
@@ -966,9 +1003,10 @@ class TransactionViewModel(
             } else {
                 System.currentTimeMillis()
             }
+            val (finalTstamp, effectiveWeek) = shiftLastWeekExpenseToNextMonth(purchaseTstamp, type, week, closedMonthsSet)
             val finalDateString = if (dateString.isEmpty()) {
                 val sdf = SimpleDateFormat("dd MMM yyyy", Locale("pt", "BR"))
-                sdf.format(Date(finalTstamp)).uppercase(Locale.getDefault())
+                sdf.format(Date(purchaseTstamp)).uppercase(Locale.getDefault())
             } else {
                 dateString
             }
@@ -983,7 +1021,7 @@ class TransactionViewModel(
                 timestamp = finalTstamp,
                 synced = _isCloudBackupEnabled.value,
                 extraText = if (type == "INFLOW") "Venda Direta" else "Despesa",
-                week = week
+                week = effectiveWeek
             )
 
             val newId = repository.insert(transaction)
@@ -999,7 +1037,7 @@ class TransactionViewModel(
                 put("dateString", finalDateString)
                 put("timestamp", transaction.timestamp)
                 put("extraText", transaction.extraText)
-                put("week", week)
+                put("week", effectiveWeek)
             }
             com.example.data.LiveSyncManager.publishMutation("transactions", "insert", json)
         }
@@ -1040,6 +1078,8 @@ class TransactionViewModel(
             }
 
             val actualTimestamp = finalTimestamp ?: System.currentTimeMillis()
+            val closedMonthsSet = repository.allClosedMonths.first().map { it.monthYear }.toSet()
+            val (finalTstamp, effectiveWeek) = shiftLastWeekExpenseToNextMonth(actualTimestamp, type, week, closedMonthsSet)
 
             val transaction = TransactionEntity(
                 id = id,
@@ -1048,10 +1088,10 @@ class TransactionViewModel(
                 type = type,
                 category = normalizeCategory(category),
                 dateString = finalDateString,
-                timestamp = actualTimestamp,
+                timestamp = finalTstamp,
                 synced = _isCloudBackupEnabled.value,
                 extraText = finalExtraText,
-                week = week
+                week = effectiveWeek
             )
 
             repository.insert(transaction)
@@ -1066,7 +1106,7 @@ class TransactionViewModel(
                 put("dateString", finalDateString)
                 put("timestamp", transaction.timestamp)
                 put("extraText", transaction.extraText)
-                put("week", week)
+                put("week", effectiveWeek)
             }
             com.example.data.LiveSyncManager.publishMutation("transactions", "insert", json)
         }

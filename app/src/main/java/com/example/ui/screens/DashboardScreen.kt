@@ -187,8 +187,8 @@ fun DashboardScreen(
         }
     }
 
-    // Modo de exibição do saldo: "ATUAL", "ANTERIOR" ou "TOTAL" (anterior + atual)
-    var balanceViewMode by remember { mutableStateOf("ATUAL") }
+    // Modo de exibição do saldo: "TOTAL" (anterior + atual), "ATUAL" ou "ANTERIOR"
+    var balanceViewMode by remember { mutableStateOf("TOTAL") }
 
     val activeSummary = remember(filteredTransactions, filteredOrders, orders, transactions, prevMonthTab) {
         val totalIn = filteredOrders.sumOf { it.totalValue }
@@ -298,8 +298,9 @@ fun DashboardScreen(
                     val totalIn = summary.totalInflow
                     val totalOut = summary.totalOutflow
                     val bal = summary.currentBalance
+                    val totalSaldo = prevMonthBalance + bal
                     val marginHtml = if (totalIn > 0) (bal / totalIn) * 100.0 else 0.0
-                    val countPieces = orders.sumOf { it.quantity }
+                    val countPieces = filteredOrders.sumOf { it.quantity }
                     val costPiece = if (countPieces > 0) totalOut / countPieces else 0.0
 
                     Text(
@@ -308,6 +309,13 @@ fun DashboardScreen(
                         color = OnSurfaceVariant
                     )
                     
+                    HorizontalDivider(color = OnSurface.copy(alpha = 0.1f))
+
+                    Text("SALDO DO MÊS:", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Primary)
+                    Text("• Saldo do Mês Anterior: " + String.format(Locale("pt", "BR"), "R$ %,.2f", prevMonthBalance), fontSize = 12.sp, color = OnSurface)
+                    Text("• Saldo do Mês Atual: " + String.format(Locale("pt", "BR"), "R$ %,.2f", bal), fontSize = 12.sp, color = OnSurface)
+                    Text("• Saldo Total (Anterior + Atual): " + String.format(Locale("pt", "BR"), "R$ %,.2f", totalSaldo), fontSize = 12.sp, color = Tertiary)
+
                     HorizontalDivider(color = OnSurface.copy(alpha = 0.1f))
                     
                     Text("RESUMO DOS INDICADORES:", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Primary)
@@ -333,6 +341,7 @@ fun DashboardScreen(
                         generatePdfAndShare(
                             context = context,
                             balance = summary.currentBalance,
+                            prevMonthBalance = prevMonthBalance,
                             inflow = summary.totalInflow,
                             outflow = summary.totalOutflow,
                             transactions = filteredTransactions,
@@ -552,7 +561,7 @@ fun DashboardScreen(
                         }
                     }
 
-                    // Balanço Atual / Saldo Atual Card
+                    // Balanço / Saldo do Mês Card
                     item {
                         GlassCard(modifier = Modifier.fillMaxWidth()) {
                             Row(
@@ -564,7 +573,7 @@ fun DashboardScreen(
                                     text = when (balanceViewMode) {
                                         "ANTERIOR" -> "Saldo Mês Anterior"
                                         "TOTAL" -> "Saldo Total (Anterior + Atual)"
-                                        else -> "Saldo Atual"
+                                        else -> "Saldo do Mês"
                                     },
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
@@ -599,9 +608,9 @@ fun DashboardScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 listOf(
-                                    "ATUAL" to "Saldo Atual",
-                                    "ANTERIOR" to "Mês Anterior",
-                                    "TOTAL" to "Anterior + Atual"
+                                    "TOTAL" to "Anterior + Atual",
+                                    "ATUAL" to "Saldo do Mês",
+                                    "ANTERIOR" to "Mês Anterior"
                                 ).forEach { (mode, label) ->
                                     val isSelected = balanceViewMode == mode
                                     Box(
