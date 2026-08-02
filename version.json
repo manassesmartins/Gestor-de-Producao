@@ -1,5 +1,6 @@
 {
-  "version": "1.20.107",
-  "changelog": "Build automático: Commit Merge branch 'main' of https://github.com/manassesmartins/Gestor-de-Producao",
+  "version": "1.20.108",
+  "changelog": "Build automático: Commit 	modified:   app/src/main/java/com/example/ui/screens/DashboardScreen.kt
+	modified:   web/index.html",
   "downloadUrl": "https://raw.githubusercontent.com/manassesmartins/Gestor-de-Producao/main/app-debug.apk"
 }
